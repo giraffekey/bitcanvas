@@ -137,10 +137,11 @@ class Canvas(Application):
 			),
 			last_pixel.owner.store_into(last_owner := abi.Address()),
 			last_pixel.deposit.store_into(last_deposit := abi.Uint64()),
+			last_pixel.term_begin_at.store_into(last_term_begin_at := abi.Uint64()),
 			InnerTxnBuilder.Execute(
 				{
 					TxnField.type_enum: TxnType.Payment,
-					TxnField.amount: last_deposit.get(),
+					TxnField.amount: last_deposit.get() - self.get_spent_deposit(last_term_begin_at, price),
 					TxnField.receiver: last_owner.get(),
 				}
 			),
@@ -172,12 +173,13 @@ class Canvas(Application):
 			self.pixels[pos].store_into(last_pixel := Pixel()),
 			last_pixel.owner.store_into(owner := abi.Address()),
 			Assert(Txn.sender() == owner.get(), comment="sender must be owner"),
+			last_pixel.term_begin_at.store_into(term_begin_at := abi.Uint64()),
 			last_pixel.price.store_into(price := abi.Uint64()),
 			last_pixel.deposit.store_into(last_deposit := abi.Uint64()),
 			(deposit := abi.Uint64()).set(self.calc_deposit(term_days, price)),
-			self.update_deposit(pay, owner, deposit, last_deposit),
+			(spent_deposit := abi.Uint64()).set(self.get_spent_deposit(term_begin_at, price)),
+			self.update_deposit(pay, owner, deposit, last_deposit, spent_deposit),
 			last_pixel.color.store_into(color := Color(ColorTypeSpec)),
-			last_pixel.term_begin_at.store_into(term_begin_at := abi.Uint64()),
 			(pixel := Pixel()).set(owner, color, term_begin_at, term_days, price, deposit),
 			self.pixels[pos].set(pixel),
 		)
@@ -189,12 +191,13 @@ class Canvas(Application):
 			self.pixels[pos].store_into(last_pixel := Pixel()),
 			last_pixel.owner.store_into(owner := abi.Address()),
 			Assert(Txn.sender() == owner.get(), comment="sender must be owner"),
+			last_pixel.term_begin_at.store_into(term_begin_at := abi.Uint64()),
 			last_pixel.term_days.store_into(term_days := abi.Uint32()),
 			last_pixel.deposit.store_into(last_deposit := abi.Uint64()),
 			(deposit := abi.Uint64()).set(self.calc_deposit(term_days, price)),
-			self.update_deposit(pay, owner, deposit, last_deposit),
+			(spent_deposit := abi.Uint64()).set(self.get_spent_deposit(term_begin_at, price)),
+			self.update_deposit(pay, owner, deposit, last_deposit, spent_deposit),
 			last_pixel.color.store_into(color := Color(ColorTypeSpec)),
-			last_pixel.term_begin_at.store_into(term_begin_at := abi.Uint64()),
 			(pixel := Pixel()).set(owner, color, term_begin_at, term_days, price, deposit),
 			self.pixels[pos].set(pixel),
 		)
@@ -204,47 +207,74 @@ class Canvas(Application):
 		return Seq(
 			Assert(self.pixels[pos].exists(), comment="pixel must exist"),
 			self.pixels[pos].store_into(pixel := Pixel()),
-			pixel.owner.store_into(owner := abi.Address()),
-			Assert(Txn.sender() == owner.get(), comment="sender must be owner"),
-			pixel.deposit.store_into(deposit := abi.Uint64()),
-			InnerTxnBuilder.Execute(
-				{
-					TxnField.type_enum: TxnType.Payment,
-					TxnField.amount: deposit.get(),
-					TxnField.receiver: owner.get(),
-				}
-			),
+			pixel.term_begin_at.store_into(term_begin_at := abi.Uint64()),
+			pixel.term_days.store_into(term_days := abi.Uint32()),
+			If(Not(self.is_expired(term_begin_at, term_days)))
+			.Then(Seq(
+				pixel.owner.store_into(owner := abi.Address()),
+				Assert(Txn.sender() == owner.get(), comment="sender must be owner"),
+				pixel.price.store_into(price := abi.Uint64()),
+				pixel.deposit.store_into(deposit := abi.Uint64()),
+				InnerTxnBuilder.Execute(
+					{
+						TxnField.type_enum: TxnType.Payment,
+						TxnField.amount: deposit.get() - self.get_spent_deposit(term_begin_at, price),
+						TxnField.receiver: owner.get(),
+					}
+				)
+			)),
 			Pop(self.pixels[pos].delete()),
 			self.total_pixels.set(self.total_pixels.get() - Int(1)),
 		)
 
 	@internal(TealType.uint64)
+	def is_expired(self, term_begin_at: abi.Uint64, term_days: abi.Uint32):
+		days = (Global.latest_timestamp() - term_begin_at.get()) / Int(84_600)
+		return days >= term_days.get()
+
+	@internal(TealType.uint64)
 	def calc_deposit(self, term_days: abi.Uint32, price: abi.Uint64):
 		return term_days.get() * price.get() * self.tax_per_day.get() / Int(1_000_000)
 
-	@internal(TealType.none)
-	def update_deposit(self, pay: abi.PaymentTransaction, owner: abi.Address, deposit: abi.Uint64, last_deposit: abi.Uint64):
-		return If(deposit.get() > last_deposit.get()).Then(
-			Seq(
-				Assert(
-					pay.get().receiver() == self.address,
-					comment="payment must be to app address",
-				),
-				Assert(
-					pay.get().amount() == deposit.get() - last_deposit.get(),
-					comment=f"payment must be {deposit.get() - last_deposit.get()}",
-				),
-			)
-		).ElseIf(deposit.get() < last_deposit.get()).Then(
-			InnerTxnBuilder.Execute(
-				{
-					TxnField.type_enum: TxnType.Payment,
-					TxnField.amount: last_deposit.get() - deposit.get(),
-					TxnField.receiver: owner.get(),
-				}
-			)
-		)
+	@internal(TealType.uint64)
+	def get_spent_deposit(self, term_begin_at: abi.Uint64, price: abi.Uint64):
+		days = (Global.latest_timestamp() - term_begin_at.get()) / Int(84_600)
+		return days * price.get() * self.tax_per_day.get() / Int(1_000_000)
 
+	@internal(TealType.none)
+	def update_deposit(self,
+		pay: abi.PaymentTransaction,
+		owner: abi.Address,
+		deposit: abi.Uint64,
+		last_deposit: abi.Uint64,
+		spent_deposit: abi.Uint64,
+	):
+		return Seq(
+			Assert(
+				deposit.get() >= spent_deposit.get(),
+				comment="total deposit must be >= spent deposit"
+			),
+			If(deposit.get() > last_deposit.get()).Then(
+				Seq(
+					Assert(
+						pay.get().receiver() == self.address,
+						comment="payment must be to app address",
+					),
+					Assert(
+						pay.get().amount() == deposit.get() - last_deposit.get(),
+						comment=f"payment must be {deposit.get() - last_deposit.get()}",
+					),
+				)
+			).ElseIf(deposit.get() < last_deposit.get()).Then(
+				InnerTxnBuilder.Execute(
+					{
+						TxnField.type_enum: TxnType.Payment,
+						TxnField.amount: last_deposit.get() - deposit.get() - spent_deposit.get(),
+						TxnField.receiver: owner.get(),
+					}
+				)
+			),
+		)
 
 if __name__ == "__main__":
 	se = Canvas()
