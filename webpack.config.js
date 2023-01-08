@@ -1,6 +1,7 @@
 const path = require("path")
 const HtmlWebpackPlugin = require("html-webpack-plugin")
-// const WorkboxWebpackPlugin = require("workbox-webpack-plugin");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin")
+// const WorkboxWebpackPlugin = require("workbox-webpack-plugin")
 
 const isProduction = process.env.NODE_ENV == "production"
 
@@ -17,6 +18,7 @@ const config = {
     new HtmlWebpackPlugin({
       template: "index.html",
     }),
+    new MiniCssExtractPlugin(),
   ],
   module: {
     rules: [
@@ -32,7 +34,7 @@ const config = {
       {
         test: /\.css$/i,
         use: [
-          "style-loader",
+          MiniCssExtractPlugin.loader,
           "css-loader",
           {
             loader: "postcss-loader",
