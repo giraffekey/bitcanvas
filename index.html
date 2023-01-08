@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1.0,user-scalable=no"
+    />
+    <title>Bitcanvas</title>
+  </head>
+  <body>
+    <p
+      id="position"
+      class="absolute left-8 top-8 bg-white p-3 border-b-2 border-gray-300 rounded-lg shadow-lg"
+    >
+      (0, 0)
+    </p>
+    <div class="absolute left-8 bottom-8 flex flex-col text-lg">
+      <button
+        id="zoomInButton"
+        class="block bg-gray-300 px-5 py-3 mb-2 border-b-4 border-gray-400 rounded-lg shadow-lg hover:bg-gray-200 transition-colors duration-200"
+      >
+        +
+      </button>
+      <button
+        id="zoomOutButton"
+        class="block bg-gray-300 px-5 py-3 border-b-4 border-gray-400 rounded-lg shadow-lg hover:bg-gray-200 transition-colors duration-200"
+      >
+        -
+      </button>
+    </div>
+  </body>
+  <!-- <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker
+                    .register("service-worker.js")
+                    .then((registration) => {
+                        console.log("Service Worker registered: ", registration);
+                    })
+                    .catch((registrationError) => {
+                        console.error("Service Worker registration failed: ", registrationError);
+                    });
+            });
+        }
+    </script> -->
+</html>
