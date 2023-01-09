@@ -1,9 +1,61 @@
-import { Application, Graphics } from "pixi.js"
+import { Application, Graphics, utils } from "pixi.js"
 import "./index.css"
 
-const $position = document.getElementById("position")
-const $zoomInButton = document.getElementById("zoomInButton")
-const $zoomOutButton = document.getElementById("zoomOutButton")
+const $position = document.getElementById(
+  "position",
+) as unknown as HTMLParagraphElement
+const $zoomInButton = document.getElementById(
+  "zoomInButton",
+) as unknown as HTMLButtonElement
+const $zoomOutButton = document.getElementById(
+  "zoomOutButton",
+) as unknown as HTMLButtonElement
+const $selection = document.getElementById(
+  "selection",
+) as unknown as HTMLDivElement
+const $selectionPosition = document.getElementById(
+  "selectionPosition",
+) as unknown as HTMLSpanElement
+const $selectionOwner = document.getElementById(
+  "selectionOwner",
+) as unknown as HTMLSpanElement
+const $selectionColor = document.getElementById(
+  "selectionColor",
+) as unknown as HTMLSpanElement
+const $selectionPrice = document.getElementById(
+  "selectionPrice",
+) as unknown as HTMLSpanElement
+const $selectionTermEnd = document.getElementById(
+  "selectionTermEnd",
+) as unknown as HTMLSpanElement
+const $openBuyButton = document.getElementById(
+  "openBuyButton",
+) as unknown as HTMLButtonElement
+const $buy = document.getElementById("buy") as unknown as HTMLButtonElement
+const $buyColorR = document.getElementById(
+  "buyColorR",
+) as unknown as HTMLInputElement
+const $buyColorG = document.getElementById(
+  "buyColorG",
+) as unknown as HTMLInputElement
+const $buyColorB = document.getElementById(
+  "buyColorB",
+) as unknown as HTMLInputElement
+const $buyPrice = document.getElementById(
+  "buyPrice",
+) as unknown as HTMLInputElement
+const $buyTermDays = document.getElementById(
+  "buyTermDays",
+) as unknown as HTMLInputElement
+const $buyDeposit = document.getElementById(
+  "buyDeposit",
+) as unknown as HTMLSpanElement
+const $buyTotalCost = document.getElementById(
+  "buyTotalCost",
+) as unknown as HTMLSpanElement
+const $buyPixelButton = document.getElementById(
+  "buyPixelButton",
+) as unknown as HTMLButtonElement
 
 const app = new Application({
   width: window.innerWidth,
@@ -13,18 +65,39 @@ const app = new Application({
 
 document.body.appendChild(app.view as unknown as Node)
 
+type Color = [number, number, number]
+
+interface Pixel {
+  owner: string
+  color: Color
+  termBeginAt: number
+  termDays: number
+  price: number
+  deposit: number
+}
+
+interface Selected {
+  x: number
+  y: number
+  color: Color
+  termDays: number
+  price: number
+}
+
 const graphics = new Graphics()
 
-const colors = [
-  0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff, 0xffffff,
-  0x000000,
-]
-const minCoord = -2147483648
-const maxCoord = 2147483647
+// const minCoord = -2147483648
+// const maxCoord = 2147483647
+const minCoord = -100
+const maxCoord = 99
+const minWidth = 8
+const maxWidth = 128
+const taxPerDay = 0.00175
 
-const pixels: number[][] = []
+const pixels: Pixel[][] = []
 const pos = { x: 0, y: 0 }
 const dir = { x: 0, y: 0, z: 0 }
+let selected: Selected | null = null
 let width = 32
 let size = window.innerWidth / width
 let height = window.innerHeight / size
@@ -33,17 +106,49 @@ let speed = width / 4
 for (let i = 0; i < 200; i++) {
   pixels[i - minCoord - 100] = []
   for (let j = 0; j < 200; j++) {
-    pixels[i - minCoord - 100][j - minCoord - 100] = colors[Math.floor(Math.random() * colors.length)]
+    const r = Math.floor(Math.random() * 2) / 2 + 0.25
+    const g = Math.floor(Math.random() * 2) / 2 + 0.25
+    const b = Math.floor(Math.random() * 2) / 2 + 0.25
+    const color: Color = [r, g, b]
+    pixels[i - minCoord - 100][j - minCoord - 100] = {
+      owner: null,
+      color,
+      termBeginAt: null,
+      termDays: null,
+      price: 1_000_000,
+      deposit: 0,
+    }
   }
 }
 
 function drawCanvas() {
-  for (let j = 0; j < width + 1; j++) {
-    for (let i = 0; i < height + 1; i++) {
-      graphics.beginFill(pixels[Math.floor(pos.x) - minCoord + j][Math.floor(pos.y) - minCoord + i])
+  for (let i = 0; i < width + 1; i++) {
+    for (let j = 0; j < height + 1; j++) {
+      const pixel =
+        pixels[Math.floor(pos.x) - minCoord + i][
+          Math.floor(pos.y) - minCoord + j
+        ]
+
+      if (
+        selected &&
+        selected.x === Math.floor(pos.x) + i &&
+        selected.y === Math.floor(pos.y) + j
+      ) {
+        const inverse = [
+          1.0 - pixel.color[0],
+          1.0 - pixel.color[1],
+          1.0 - pixel.color[2],
+        ]
+        graphics.lineStyle(size / 10, utils.rgb2hex(inverse), 1, 0)
+        graphics.beginFill(utils.rgb2hex(selected.color))
+      } else {
+        graphics.lineStyle(0)
+        graphics.beginFill(utils.rgb2hex(pixel.color))
+      }
+
       graphics.drawRect(
-        (j - (pos.x - Math.floor(pos.x))) * size,
-        (i - (pos.y - Math.floor(pos.y))) * size,
+        (i - (pos.x - Math.floor(pos.x))) * size,
+        (j - (pos.y - Math.floor(pos.y))) * size,
         size,
         size,
       )
@@ -75,8 +180,8 @@ function zoom(dz: number) {
     const lastWidth = width
     const lastHeight = height
     width += dz
-    if (width < 8) width = 8
-    if (width > 128) width = 128
+    if (width < minWidth) width = minWidth
+    if (width > maxWidth) width = maxWidth
     size = window.innerWidth / width
     height = window.innerHeight / size
     speed = width / 4
@@ -84,9 +189,61 @@ function zoom(dz: number) {
   }
 }
 
+function select(x: number, y: number) {
+  $buy.hidden = true
+  if (selected && selected.x === x && selected.y === y) {
+    selected = null
+    $selection.hidden = true
+    $selectionPosition.innerText = ""
+    $selectionOwner.innerText = ""
+    $selectionColor.innerText = ""
+    $selectionPrice.innerText = ""
+    $selectionTermEnd.innerText = ""
+  } else {
+    const pixel = pixels[x - minCoord][y - minCoord]
+    selected = {
+      x,
+      y,
+      color: pixel.color,
+      termDays: pixel.termDays,
+      price: pixel.price,
+    }
+    $selection.hidden = false
+    $selectionPosition.innerText = `(${x}, ${y})`
+    $selectionOwner.innerText = pixel.owner || "Unowned"
+    $selectionColor.innerText = `rgb(${Math.floor(
+      pixel.color[0] * 255,
+    )}, ${Math.floor(pixel.color[1] * 255)}, ${Math.floor(
+      pixel.color[2] * 255,
+    )})`
+    $selectionPrice.innerText = `${pixel.price / 1_000_000} ALGO`
+    $selectionTermEnd.innerText =
+      pixel.termBeginAt && pixel.termDays
+        ? "" + pixel.termBeginAt + pixel.termDays * 86_400
+        : "Never"
+    $buyColorR.value = "" + Math.floor(selected.color[0] * 255)
+    $buyColorG.value = "" + Math.floor(selected.color[1] * 255)
+    $buyColorB.value = "" + Math.floor(selected.color[2] * 255)
+    $buyPrice.value = "" + selected.price / 1_000_000
+    $buyTermDays.value = "" + selected.termDays
+    const deposit = selected.price * taxPerDay * selected.termDays
+    $buyDeposit.innerText = `${deposit / 1_000_000} ALGO`
+    const price = pixels[selected.x - minCoord][selected.y - minCoord].price
+    $buyTotalCost.innerText = `${(price + deposit) / 1_000_000} ALGO`
+  }
+  graphics.clear()
+  drawCanvas()
+}
+
+let elapsed = 0
 app.ticker.add((dt) => {
-  move((dt / 60) * dir.x * speed, (dt / 60) * dir.y * speed)
-  zoom((dt / 60) * dir.z * 10)
+  elapsed += dt
+  const threshold = Math.ceil((width / maxWidth) * 4)
+  if (elapsed >= threshold) {
+    elapsed = elapsed % threshold
+    move((dt / 60) * dir.x * speed, (dt / 60) * dir.y * speed)
+    zoom((dt / 60) * dir.z * 10)
+  }
 })
 
 let zooming = false
@@ -159,21 +316,8 @@ window.addEventListener("wheel", (e) => {
   }
 })
 
-let grabbing = false
-
-window.addEventListener("mousedown", (e) => {
-  if (e.button === 0 && dir.z === 0) grabbing = true
-})
-
 window.addEventListener("mouseup", (e) => {
-  if (e.button === 0) {
-    grabbing = false
-    dir.z = 0
-  }
-})
-
-window.addEventListener("mousemove", (e) => {
-  if (grabbing) move(-e.movementX / size, -e.movementY / size)
+  if (e.button === 0) dir.z = 0
 })
 
 window.addEventListener("resize", () => {
@@ -184,9 +328,69 @@ window.addEventListener("resize", () => {
   drawCanvas()
 })
 
+let grabbing = false
+
+app.view.addEventListener("mousedown", (e: MouseEvent) => {
+  if (e.button === 0) grabbing = true
+})
+
+app.view.addEventListener("mouseup", (e: MouseEvent) => {
+  if (e.button === 0) grabbing = false
+})
+
+app.view.addEventListener("mousemove", (e: MouseEvent) => {
+  if (grabbing) move(-e.movementX / size, -e.movementY / size)
+})
+
+app.view.addEventListener("click", (e: MouseEvent) => {
+  select(
+    Math.floor(e.clientX / size + pos.x),
+    Math.floor(e.clientY / size + pos.y),
+  )
+})
+
 $zoomInButton.addEventListener("mousedown", (e) => {
   if (e.button === 0) dir.z = -1
 })
+
 $zoomOutButton.addEventListener("mousedown", (e) => {
   if (e.button === 0) dir.z = 1
 })
+
+$openBuyButton.addEventListener("click", () => ($buy.hidden = false))
+
+$buyColorR.addEventListener("input", () => {
+  selected.color[0] = parseInt($buyColorR.value) / 255
+  graphics.clear()
+  drawCanvas()
+})
+
+$buyColorG.addEventListener("input", () => {
+  selected.color[1] = parseInt($buyColorG.value) / 255
+  graphics.clear()
+  drawCanvas()
+})
+
+$buyColorB.addEventListener("input", () => {
+  selected.color[2] = parseInt($buyColorB.value) / 255
+  graphics.clear()
+  drawCanvas()
+})
+
+$buyPrice.addEventListener("input", () => {
+  selected.price = Math.floor(parseFloat($buyPrice.value) * 1_000_000)
+  const deposit = selected.price * taxPerDay * selected.termDays
+  $buyDeposit.innerText = `${deposit / 1_000_000} ALGO`
+  const price = pixels[selected.x - minCoord][selected.y - minCoord].price
+  $buyTotalCost.innerText = `${(price + deposit) / 1_000_000} ALGO`
+})
+
+$buyTermDays.addEventListener("input", () => {
+  selected.termDays = parseInt($buyTermDays.value)
+  const deposit = selected.price * taxPerDay * selected.termDays
+  $buyDeposit.innerText = `${deposit / 1_000_000} ALGO`
+  const price = pixels[selected.x - minCoord][selected.y - minCoord].price
+  $buyTotalCost.innerText = `${(price + deposit) / 1_000_000} ALGO`
+})
+
+$buyPixelButton.addEventListener("click", () => {})
