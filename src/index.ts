@@ -135,9 +135,9 @@ function drawCanvas() {
         selected.y === Math.floor(pos.y) + j
       ) {
         const inverse = [
-          1.0 - pixel.color[0],
-          1.0 - pixel.color[1],
-          1.0 - pixel.color[2],
+          1.0 - selected.color[0],
+          1.0 - selected.color[1],
+          1.0 - selected.color[2],
         ]
         graphics.lineStyle(size / 10, utils.rgb2hex(inverse), 1, 0)
         graphics.beginFill(utils.rgb2hex(selected.color))
@@ -204,7 +204,7 @@ function select(x: number, y: number) {
     selected = {
       x,
       y,
-      color: pixel.color,
+      color: { ...pixel.color },
       termDays: pixel.termDays,
       price: pixel.price,
     }
@@ -227,9 +227,9 @@ function select(x: number, y: number) {
     $buyPrice.value = "" + selected.price / 1_000_000
     $buyTermDays.value = "" + selected.termDays
     const deposit = selected.price * taxPerDay * selected.termDays
-    $buyDeposit.innerText = `${deposit / 1_000_000} ALGO`
+    $buyDeposit.innerText = `${(deposit / 1_000_000).toFixed(6)} ALGO`
     const price = pixels[selected.x - minCoord][selected.y - minCoord].price
-    $buyTotalCost.innerText = `${(price + deposit) / 1_000_000} ALGO`
+    $buyTotalCost.innerText = `${((price + deposit) / 1_000_000).toFixed(6)} ALGO`
   }
   graphics.clear()
   drawCanvas()
@@ -378,19 +378,19 @@ $buyColorB.addEventListener("input", () => {
 })
 
 $buyPrice.addEventListener("input", () => {
-  selected.price = Math.floor(parseFloat($buyPrice.value) * 1_000_000)
+  selected.price = parseFloat($buyPrice.value) * 1_000_000
   const deposit = selected.price * taxPerDay * selected.termDays
-  $buyDeposit.innerText = `${deposit / 1_000_000} ALGO`
+  $buyDeposit.innerText = `${(deposit / 1_000_000).toFixed(6)} ALGO`
   const price = pixels[selected.x - minCoord][selected.y - minCoord].price
-  $buyTotalCost.innerText = `${(price + deposit) / 1_000_000} ALGO`
+  $buyTotalCost.innerText = `${((price + deposit) / 1_000_000).toFixed(6)} ALGO`
 })
 
 $buyTermDays.addEventListener("input", () => {
   selected.termDays = parseInt($buyTermDays.value)
   const deposit = selected.price * taxPerDay * selected.termDays
-  $buyDeposit.innerText = `${deposit / 1_000_000} ALGO`
+  $buyDeposit.innerText = `${(deposit / 1_000_000).toFixed(6)} ALGO`
   const price = pixels[selected.x - minCoord][selected.y - minCoord].price
-  $buyTotalCost.innerText = `${(price + deposit) / 1_000_000} ALGO`
+  $buyTotalCost.innerText = `${((price + deposit) / 1_000_000).toFixed(6)} ALGO`
 })
 
 $buyPixelButton.addEventListener("click", () => {})
