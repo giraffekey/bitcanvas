@@ -1,3 +1,3 @@
 # bitcanvas
 
-A decentralized pixel canvas with Harberger taxation.
+A decentralized collaborative pixel canvas with Harberger taxation.
