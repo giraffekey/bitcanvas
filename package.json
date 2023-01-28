@@ -8,18 +8,22 @@
     "build": "webpack --mode=production --node-env=production",
     "build:dev": "webpack --mode=development",
     "build:prod": "webpack --mode=production --node-env=production",
-    "format": "prettier --plugin-search-dir . --write ."
+    "format": "prettier --plugin-search-dir . --write .",
+    "deploy-contract": "python3 -m contracts.deploy"
   },
   "dependencies": {
     "algosdk": "^2.0.0",
+    "bluebird": "^3.7.2",
     "pixi.js": "^7.0.5"
   },
   "devDependencies": {
+    "@types/bluebird": "^3.5.38",
     "@webpack-cli/generators": "^3.0.1",
     "autoprefixer": "^10.4.13",
     "css-loader": "^6.7.3",
     "html-webpack-plugin": "^5.5.0",
     "mini-css-extract-plugin": "^2.7.2",
+    "node-polyfill-webpack-plugin": "^2.0.1",
     "postcss": "^8.4.21",
     "postcss-loader": "^7.0.2",
     "prettier": "^2.8.1",

@@ -1,4 +1,7 @@
 import { Application, Graphics, utils } from "pixi.js"
+import bluebird from "bluebird"
+import { getPixels, mintPixel } from "./contract"
+import type { Color, Pixel } from "./contract"
 import "./index.css"
 
 const $position = document.getElementById(
@@ -65,17 +68,6 @@ const app = new Application({
 
 document.body.appendChild(app.view as unknown as Node)
 
-type Color = [number, number, number]
-
-interface Pixel {
-  owner: string
-  color: Color
-  termBeginAt: number
-  termDays: number
-  price: number
-  deposit: number
-}
-
 interface Selected {
   x: number
   y: number
@@ -86,15 +78,15 @@ interface Selected {
 
 const graphics = new Graphics()
 
-// const minCoord = -2147483648
-// const maxCoord = 2147483647
-const minCoord = -100
-const maxCoord = 99
+const minCoord = -2147483648
+const maxCoord = 2147483647
 const minWidth = 8
 const maxWidth = 128
+const chunkSize = 100
 const taxPerDay = 0.00175
 
 const pixels: Pixel[][] = []
+const chunkLoaded: boolean[][] = []
 const pos = { x: 0, y: 0 }
 const dir = { x: 0, y: 0, z: 0 }
 let selected: Selected | null = null
@@ -103,61 +95,45 @@ let size = window.innerWidth / width
 let height = window.innerHeight / size
 let speed = width / 4
 
-for (let i = 0; i < 200; i++) {
-  pixels[i - minCoord - 100] = []
-  for (let j = 0; j < 200; j++) {
-    const r = Math.floor(Math.random() * 2) / 2 + 0.25
-    const g = Math.floor(Math.random() * 2) / 2 + 0.25
-    const b = Math.floor(Math.random() * 2) / 2 + 0.25
-    const color: Color = [r, g, b]
-    pixels[i - minCoord - 100][j - minCoord - 100] = {
-      owner: null,
-      color,
-      termBeginAt: null,
-      termDays: null,
-      price: 1_000_000,
-      deposit: 0,
-    }
-  }
+function pixelAt(x: number, y: number): Pixel | undefined {
+  if (!pixels[x - minCoord]) return undefined
+  return pixels[x - minCoord][y - minCoord]
 }
 
 function drawCanvas() {
   for (let i = 0; i < width + 1; i++) {
     for (let j = 0; j < height + 1; j++) {
-      const pixel =
-        pixels[Math.floor(pos.x) - minCoord + i][
-          Math.floor(pos.y) - minCoord + j
-        ]
+      const pixel = pixelAt(Math.floor(pos.x) + i, Math.floor(pos.y) + j)
 
-      if (
-        selected &&
-        selected.x === Math.floor(pos.x) + i &&
-        selected.y === Math.floor(pos.y) + j
-      ) {
-        const inverse = [
-          1.0 - selected.color[0],
-          1.0 - selected.color[1],
-          1.0 - selected.color[2],
-        ]
-        graphics.lineStyle(size / 10, utils.rgb2hex(inverse), 1, 0)
-        graphics.beginFill(utils.rgb2hex(selected.color))
-      } else {
-        graphics.lineStyle(0)
-        graphics.beginFill(utils.rgb2hex(pixel.color))
+      if (pixel) {
+        if (
+          selected &&
+          selected.x === Math.floor(pos.x) + i &&
+          selected.y === Math.floor(pos.y) + j
+        ) {
+          const inverse = [
+            1.0 - selected.color[0],
+            1.0 - selected.color[1],
+            1.0 - selected.color[2],
+          ]
+          graphics.lineStyle(size / 10, utils.rgb2hex(inverse), 1, 0)
+          graphics.beginFill(utils.rgb2hex(selected.color))
+        } else {
+          graphics.lineStyle(0)
+          graphics.beginFill(utils.rgb2hex(pixel.color))
+        }
+
+        graphics.drawRect(
+          (i - (pos.x - Math.floor(pos.x))) * size,
+          (j - (pos.y - Math.floor(pos.y))) * size,
+          size,
+          size,
+        )
+        graphics.endFill()
       }
-
-      graphics.drawRect(
-        (i - (pos.x - Math.floor(pos.x))) * size,
-        (j - (pos.y - Math.floor(pos.y))) * size,
-        size,
-        size,
-      )
-      graphics.endFill()
     }
   }
 }
-
-drawCanvas()
 
 app.stage.addChild(graphics)
 
@@ -172,6 +148,18 @@ function move(dx: number, dy: number) {
     $position.innerText = `(${Math.floor(pos.x)}, ${Math.floor(pos.y)})`
     graphics.clear()
     drawCanvas()
+
+    const loadX = Math.abs(pos.x) % chunkSize >= chunkSize - size
+    const loadY = Math.abs(pos.y) % chunkSize >= chunkSize - size
+    if (loadX) {
+      loadChunk(Math.floor(pos.x / chunkSize) + pos.x >= 0 ? 1 : -1, Math.floor(pos.y / chunkSize))
+    }
+    if (loadY) {
+      loadChunk(Math.floor(pos.x / chunkSize), Math.floor(pos.y / chunkSize) + pos.y >= 0 ? 1 : -1)
+    }
+    if (loadX && loadY) {
+      loadChunk(Math.floor(pos.x / chunkSize) + pos.x >= 0 ? 1 : -1, Math.floor(pos.y / chunkSize) + pos.y >= 0 ? 1 : -1)
+    }
   }
 }
 
@@ -200,40 +188,78 @@ function select(x: number, y: number) {
     $selectionPrice.innerText = ""
     $selectionTermEnd.innerText = ""
   } else {
-    const pixel = pixels[x - minCoord][y - minCoord]
-    selected = {
-      x,
-      y,
-      color: { ...pixel.color },
-      termDays: pixel.termDays,
-      price: pixel.price,
+    const pixel = pixelAt(x, y)
+    if (pixel) {
+      selected = {
+        x,
+        y,
+        color: { ...pixel.color },
+        termDays: pixel.termDays,
+        price: pixel.price,
+      }
+      $selection.hidden = false
+      $selectionPosition.innerText = `(${x}, ${y})`
+      $selectionOwner.innerText = pixel.owner || "Unowned"
+      $selectionColor.innerText = `rgb(${Math.floor(
+        pixel.color[0] * 255,
+      )}, ${Math.floor(pixel.color[1] * 255)}, ${Math.floor(
+        pixel.color[2] * 255,
+      )})`
+      $selectionPrice.innerText = `${pixel.price / 1_000_000} ALGO`
+      $selectionTermEnd.innerText =
+        pixel.termBeginAt && pixel.termDays
+          ? "" + pixel.termBeginAt + pixel.termDays * 86_400
+          : "Never"
+      $buyColorR.value = "" + Math.floor(selected.color[0] * 255)
+      $buyColorG.value = "" + Math.floor(selected.color[1] * 255)
+      $buyColorB.value = "" + Math.floor(selected.color[2] * 255)
+      $buyPrice.value = "" + selected.price / 1_000_000
+      $buyTermDays.value = "" + selected.termDays
+      const deposit = selected.price * taxPerDay * selected.termDays
+      $buyDeposit.innerText = `${(deposit / 1_000_000).toFixed(6)} ALGO`
+      $buyTotalCost.innerText = `${((pixel.price + deposit) / 1_000_000).toFixed(
+        6,
+      )} ALGO`
     }
-    $selection.hidden = false
-    $selectionPosition.innerText = `(${x}, ${y})`
-    $selectionOwner.innerText = pixel.owner || "Unowned"
-    $selectionColor.innerText = `rgb(${Math.floor(
-      pixel.color[0] * 255,
-    )}, ${Math.floor(pixel.color[1] * 255)}, ${Math.floor(
-      pixel.color[2] * 255,
-    )})`
-    $selectionPrice.innerText = `${pixel.price / 1_000_000} ALGO`
-    $selectionTermEnd.innerText =
-      pixel.termBeginAt && pixel.termDays
-        ? "" + pixel.termBeginAt + pixel.termDays * 86_400
-        : "Never"
-    $buyColorR.value = "" + Math.floor(selected.color[0] * 255)
-    $buyColorG.value = "" + Math.floor(selected.color[1] * 255)
-    $buyColorB.value = "" + Math.floor(selected.color[2] * 255)
-    $buyPrice.value = "" + selected.price / 1_000_000
-    $buyTermDays.value = "" + selected.termDays
-    const deposit = selected.price * taxPerDay * selected.termDays
-    $buyDeposit.innerText = `${(deposit / 1_000_000).toFixed(6)} ALGO`
-    const price = pixels[selected.x - minCoord][selected.y - minCoord].price
-    $buyTotalCost.innerText = `${((price + deposit) / 1_000_000).toFixed(6)} ALGO`
   }
   graphics.clear()
   drawCanvas()
 }
+
+async function loadChunk(chunkX: number, chunkY: number) {
+  const startX = chunkX * chunkSize - minCoord
+  const startY = chunkY * chunkSize - minCoord
+  const promises = []
+  for (let i = 0; i < chunkSize / 2; i++) {
+    for (let j = 0; j < chunkSize / 2; j++) {
+      const loadPiece = async () => {
+        const pieceX = startX + i * 2
+        const pieceY = startY + j * 2
+        const piecePixels = await getPixels(pieceX, pieceY, 2, 2)
+        for (let i = 0; i < 2; i++) {
+          for (let j = 0; j < 2; j++) {
+            const x = pieceX + i
+            const y = pieceY + j
+            if (!pixels[x]) pixels[x] = []
+            pixels[x][y] = piecePixels[i][j]
+          }
+        }
+        drawCanvas()
+      }
+      promises.push(loadPiece())
+    }
+  }
+  await bluebird.map(promises, () => {}, { concurrency: 10 })
+}
+
+drawCanvas()
+
+setTimeout(() => {
+  loadChunk(0, 0)
+  loadChunk(-1, 0)
+  loadChunk(0, -1)
+  loadChunk(-1, -1)
+}, 1000)
 
 let elapsed = 0
 app.ticker.add((dt) => {
@@ -381,7 +407,7 @@ $buyPrice.addEventListener("input", () => {
   selected.price = parseFloat($buyPrice.value) * 1_000_000
   const deposit = selected.price * taxPerDay * selected.termDays
   $buyDeposit.innerText = `${(deposit / 1_000_000).toFixed(6)} ALGO`
-  const price = pixels[selected.x - minCoord][selected.y - minCoord].price
+  const price = pixelAt(selected.x, selected.y).price
   $buyTotalCost.innerText = `${((price + deposit) / 1_000_000).toFixed(6)} ALGO`
 })
 
@@ -389,7 +415,7 @@ $buyTermDays.addEventListener("input", () => {
   selected.termDays = parseInt($buyTermDays.value)
   const deposit = selected.price * taxPerDay * selected.termDays
   $buyDeposit.innerText = `${(deposit / 1_000_000).toFixed(6)} ALGO`
-  const price = pixels[selected.x - minCoord][selected.y - minCoord].price
+  const price = pixelAt(selected.x, selected.y).price
   $buyTotalCost.innerText = `${((price + deposit) / 1_000_000).toFixed(6)} ALGO`
 })
 
