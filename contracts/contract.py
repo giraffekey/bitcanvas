@@ -116,47 +116,6 @@ class Canvas(Application):
 		)
 
 	@external
-	def get_pixels(
-		self,
-		pos: Position,
-		width: abi.Uint32,
-		height: abi.Uint32,
-		*,
-		output: abi.DynamicArray[Pixel],
-	):
-		return Seq(
-			pos[0].store_into(start_x := abi.Uint32()),
-			pos[1].store_into(start_y := abi.Uint32()),
-			(pixelBytes := abi.DynamicBytes()).set(Bytes("")),
-			For((i := abi.Uint32()).set(Int(0)), i.get() < width.get(), i.set(i.get() + Int(1))).Do(
-				Seq(
-					(x := abi.Uint32()).set(start_x.get() + i.get()),
-					For((j := abi.Uint32()).set(Int(0)), j.get() < height.get(), j.set(j.get() + Int(1))).Do(
-						(y := abi.Uint32()).set(start_y.get() + j.get()),
-						(pos := Position(PositionTypeSpec)).set(x, y),
-						If(self.pixels[pos].exists()).Then(
-							self.pixels[pos].store_into(pixel := Pixel()),
-							pixelBytes.set(Concat(pixelBytes.get(), pixel.encode())),
-						).Else(
-							Seq(
-								(owner := abi.Address()).set(Global.zero_address()),
-								(c := abi.Uint8()).set(Int(255)),
-								(color := Color(ColorTypeSpec)).set(c, c, c),
-								(term_begin_at := abi.Uint64()).set(Int(0)),
-								(term_days := abi.Uint32()).set(Int(0)),
-								(price := abi.Uint64()).set(self.mint_fee.get()),
-								(deposit := abi.Uint64()).set(Int(0)),
-								(pixel := Pixel()).set(owner, color, term_begin_at, term_days, price, deposit),
-								pixelBytes.set(Concat(pixelBytes.get(), pixel.encode())),
-							),
-						),
-					),
-				),
-			),
-			output.decode(Concat(Extract(Itob(width.get() * height.get()), Int(6), Int(2)), pixelBytes.get())),
-		)
-
-	@external
 	def mint_pixel(
 		self,
 		pay: abi.PaymentTransaction,
@@ -231,56 +190,56 @@ class Canvas(Application):
 			self.pixels[pos].set(pixel),
 		)
 
-	# @external
-	# def update_pixel_color(self, pos: Position, color: Color):
-	# 	return Seq(
-	# 		Assert(self.pixels[pos].exists(), comment="pixel must exist"),
-	# 		self.pixels[pos].store_into(last_pixel := Pixel()),
-	# 		last_pixel.owner.store_into(owner := abi.Address()),
-	# 		Assert(Txn.sender() == owner.get(), comment="sender must be owner"),
-	# 		last_pixel.term_begin_at.store_into(term_begin_at := abi.Uint64()),
-	# 		last_pixel.term_days.store_into(term_days := abi.Uint32()),
-	# 		last_pixel.price.store_into(price := abi.Uint64()),
-	# 		last_pixel.deposit.store_into(deposit := abi.Uint64()),
-	# 		(pixel := Pixel()).set(owner, color, term_begin_at, term_days, price, deposit),
-	# 		self.pixels[pos].set(pixel),
-	# 	)
+	@external
+	def update_pixel_color(self, pos: Position, color: Color):
+		return Seq(
+			Assert(self.pixels[pos].exists(), comment="pixel must exist"),
+			self.pixels[pos].store_into(last_pixel := Pixel()),
+			last_pixel.owner.store_into(owner := abi.Address()),
+			Assert(Txn.sender() == owner.get(), comment="sender must be owner"),
+			last_pixel.term_begin_at.store_into(term_begin_at := abi.Uint64()),
+			last_pixel.term_days.store_into(term_days := abi.Uint32()),
+			last_pixel.price.store_into(price := abi.Uint64()),
+			last_pixel.deposit.store_into(deposit := abi.Uint64()),
+			(pixel := Pixel()).set(owner, color, term_begin_at, term_days, price, deposit),
+			self.pixels[pos].set(pixel),
+		)
 
-	# @external
-	# def update_pixel_term_days(self, pay: abi.PaymentTransaction, pos: Position, term_days: abi.Uint32):
-	# 	return Seq(
-	# 		Assert(self.pixels[pos].exists(), comment="pixel must exist"),
-	# 		self.pixels[pos].store_into(last_pixel := Pixel()),
-	# 		last_pixel.owner.store_into(owner := abi.Address()),
-	# 		Assert(Txn.sender() == owner.get(), comment="sender must be owner"),
-	# 		last_pixel.term_begin_at.store_into(term_begin_at := abi.Uint64()),
-	# 		last_pixel.price.store_into(price := abi.Uint64()),
-	# 		last_pixel.deposit.store_into(last_deposit := abi.Uint64()),
-	# 		(deposit := abi.Uint64()).set(self.calc_deposit(term_days, price)),
-	# 		(spent_deposit := abi.Uint64()).set(self.get_spent_deposit(term_begin_at, price)),
-	# 		self.update_deposit(pay, owner, deposit, last_deposit, spent_deposit),
-	# 		last_pixel.color.store_into(color := Color(ColorTypeSpec)),
-	# 		(pixel := Pixel()).set(owner, color, term_begin_at, term_days, price, deposit),
-	# 		self.pixels[pos].set(pixel),
-	# 	)
+	@external
+	def update_pixel_term_days(self, pay: abi.PaymentTransaction, pos: Position, term_days: abi.Uint32):
+		return Seq(
+			Assert(self.pixels[pos].exists(), comment="pixel must exist"),
+			self.pixels[pos].store_into(last_pixel := Pixel()),
+			last_pixel.owner.store_into(owner := abi.Address()),
+			Assert(Txn.sender() == owner.get(), comment="sender must be owner"),
+			last_pixel.term_begin_at.store_into(term_begin_at := abi.Uint64()),
+			last_pixel.price.store_into(price := abi.Uint64()),
+			last_pixel.deposit.store_into(last_deposit := abi.Uint64()),
+			(deposit := abi.Uint64()).set(self.calc_deposit(term_days, price)),
+			(spent_deposit := abi.Uint64()).set(self.get_spent_deposit(term_begin_at, price)),
+			self.update_deposit(pay, owner, deposit, last_deposit, spent_deposit),
+			last_pixel.color.store_into(color := Color(ColorTypeSpec)),
+			(pixel := Pixel()).set(owner, color, term_begin_at, term_days, price, deposit),
+			self.pixels[pos].set(pixel),
+		)
 
-	# @external
-	# def update_pixel_price(self, pay: abi.PaymentTransaction, pos: Position, price: abi.Uint64):
-	# 	return Seq(
-	# 		Assert(self.pixels[pos].exists(), comment="pixel must exist"),
-	# 		self.pixels[pos].store_into(last_pixel := Pixel()),
-	# 		last_pixel.owner.store_into(owner := abi.Address()),
-	# 		Assert(Txn.sender() == owner.get(), comment="sender must be owner"),
-	# 		last_pixel.term_begin_at.store_into(term_begin_at := abi.Uint64()),
-	# 		last_pixel.term_days.store_into(term_days := abi.Uint32()),
-	# 		last_pixel.deposit.store_into(last_deposit := abi.Uint64()),
-	# 		(deposit := abi.Uint64()).set(self.calc_deposit(term_days, price)),
-	# 		(spent_deposit := abi.Uint64()).set(self.get_spent_deposit(term_begin_at, price)),
-	# 		self.update_deposit(pay, owner, deposit, last_deposit, spent_deposit),
-	# 		last_pixel.color.store_into(color := Color(ColorTypeSpec)),
-	# 		(pixel := Pixel()).set(owner, color, term_begin_at, term_days, price, deposit),
-	# 		self.pixels[pos].set(pixel),
-	# 	)
+	@external
+	def update_pixel_price(self, pay: abi.PaymentTransaction, pos: Position, price: abi.Uint64):
+		return Seq(
+			Assert(self.pixels[pos].exists(), comment="pixel must exist"),
+			self.pixels[pos].store_into(last_pixel := Pixel()),
+			last_pixel.owner.store_into(owner := abi.Address()),
+			Assert(Txn.sender() == owner.get(), comment="sender must be owner"),
+			last_pixel.term_begin_at.store_into(term_begin_at := abi.Uint64()),
+			last_pixel.term_days.store_into(term_days := abi.Uint32()),
+			last_pixel.deposit.store_into(last_deposit := abi.Uint64()),
+			(deposit := abi.Uint64()).set(self.calc_deposit(term_days, price)),
+			(spent_deposit := abi.Uint64()).set(self.get_spent_deposit(term_begin_at, price)),
+			self.update_deposit(pay, owner, deposit, last_deposit, spent_deposit),
+			last_pixel.color.store_into(color := Color(ColorTypeSpec)),
+			(pixel := Pixel()).set(owner, color, term_begin_at, term_days, price, deposit),
+			self.pixels[pos].set(pixel),
+		)
 
 	@external
 	def burn_pixel(self, pos: Position):

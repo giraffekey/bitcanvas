@@ -94,6 +94,9 @@ if __name__ == "__main__":
     with open("./src/contract.json", "w") as f:
         f.write(json.dumps(se.contract.dictify()))
 
+    with open("./indexer/contract.json", "w") as f:
+        f.write(json.dumps(se.contract.dictify()))
+
     approval_program_compiled = compile_program(algod_client, se.approval_program)
     clear_program_compiled = compile_program(algod_client, se.clear_program)
 
