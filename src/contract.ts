@@ -1,5 +1,6 @@
 import algosdk from "algosdk"
 import type { ABIValue, BoxReference } from "algosdk"
+import axios from "axios"
 import contractABI from "./contract.json"
 
 export type Color = [number, number, number]
@@ -13,18 +14,11 @@ export interface Pixel {
   deposit: number
 }
 
-const pixelByteSize = 63
-const pixelMinBalance = 27700
-const PixelType = new algosdk.ABITupleType([
-  new algosdk.ABIAddressType(),
-  new algosdk.ABITupleType([new algosdk.ABIUintType(8), new algosdk.ABIUintType(8), new algosdk.ABIUintType(8)]),
-  new algosdk.ABIUintType(64),
-  new algosdk.ABIUintType(32),
-  new algosdk.ABIUintType(64),
-  new algosdk.ABIUintType(64),
-])
+const ZERO_ADDRESS = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
+const PIXEL_MIN_BALANCE = 27700
+const INDEXER_API = "http://localhost:5000"
 
-const appID = 156287636
+const appID = 156697068
 const contract = new algosdk.ABIContract(contractABI)
 
 const algod = new algosdk.Algodv2(
@@ -35,21 +29,22 @@ const algod = new algosdk.Algodv2(
 
 const mnemonic =
   "object march dream board model pitch actor plate jungle cream caution smoke electric muscle west melody attend come pencil empty kiwi magnet win abandon black"
-const account = algosdk.mnemonicToSecretKey(mnemonic)
+export const account = algosdk.mnemonicToSecretKey(mnemonic)
 
 function intToArray(i: number): Uint8Array {
-    return Uint8Array.of(
-    (i&0xff000000)>>24,
-    (i&0x00ff0000)>>16,
-    (i&0x0000ff00)>> 8,
-    (i&0x000000ff)>> 0)
+  return Uint8Array.of(
+    (i & 0xff000000) >> 24,
+    (i & 0x00ff0000) >> 16,
+    (i & 0x0000ff00) >> 8,
+    (i & 0x000000ff) >> 0,
+  )
 }
 
 function arrayToInt(bs: Uint8Array): number {
   const bytes = bs.subarray(0, 4)
   let n = 0
-  for (let i = 0; i < bytes.length; i++) {       
-    n = (n<<8)|bytes[i]
+  for (let i = 0; i < bytes.length; i++) {
+    n = (n << 8) | bytes[i]
   }
   return n
 }
@@ -141,16 +136,17 @@ export async function getMaxPixels(): Promise<number> {
 }
 
 export async function allocatePixels(amount: number) {
-  const payment = pixelMinBalance * amount
+  const payment = PIXEL_MIN_BALANCE * amount
   await callApp("allocate_pixels", [amount], [], payment)
 }
 
 export async function getPixel(x: number, y: number): Promise<Pixel> {
   const boxes = [{ appIndex: appID, name: pixelBoxName(x, y) }]
   const [pixel] = await callApp("get_pixel", [[x, y]], boxes)
-  const [owner, color, termBeginAt, termDays, price, deposit] = pixel as ABIValue[]
+  const [owner, color, termBeginAt, termDays, price, deposit] =
+    pixel as ABIValue[]
   return <Pixel>{
-    owner,
+    owner: owner === ZERO_ADDRESS ? null : owner,
     color: (color as bigint[]).map((c) => Number(c) / 255),
     termBeginAt: Number(termBeginAt as bigint),
     termDays: Number(termDays as bigint),
@@ -160,31 +156,13 @@ export async function getPixel(x: number, y: number): Promise<Pixel> {
 }
 
 export async function getPixels(x: number, y: number, width: number, height: number): Promise<Pixel[][]> {
-  const boxes = []
-  for (let i = 0; i < width; i++) {
-    for (let j = 0; j < height; j++) {
-      boxes.push({ appIndex: appID, name: pixelBoxName(x + i, y + j) })
-    }
-  }
-
-  const [pixels] = <[ABIValue[][]]>await callApp("get_pixels", [[x, y], width, height], boxes)
-
-  const pixelGrid = []
-  for (let i = 0; i < height; i++) {
-    pixelGrid[i] = pixels.slice(i * width, (i + 1) * width).map((pixel: ABIValue[]) => {
-      const [owner, color, termBeginAt, termDays, price, deposit] = pixel as ABIValue[]
-      return <Pixel>{
-        owner,
-        color: (color as bigint[]).map((c) => Number(c) / 255),
-        termBeginAt: Number(termBeginAt as bigint),
-        termDays: Number(termDays as bigint),
-        price: Number(price as bigint),
-        deposit: Number(deposit as bigint),
-      }
-    })
-  }
-
-  return pixelGrid
+  const res = await axios.get(`${INDEXER_API}/pixels`, { params: { x, y, width, height } })
+  const pixels = <Pixel[][]>res.data
+  return pixels.map(col => col.map(pixel => ({
+    ...pixel,
+    owner: pixel.owner === ZERO_ADDRESS ? null : pixel.owner,
+    color: <Color>pixel.color.map(c => c / 255),
+  })))
 }
 
 export async function mintPixel(
@@ -201,12 +179,17 @@ export async function mintPixel(
     getTotalPixels(),
     getMaxPixels(),
   ])
-  const deposit = calcDeposit(termDays, price * 1_000_000, taxPerDay)
+  const deposit = calcDeposit(termDays, price, taxPerDay)
   let payment = mintFee + deposit
   if (totalPixels >= maxPixels) {
-    payment += pixelMinBalance
+    payment += PIXEL_MIN_BALANCE
   }
-  await callApp("mint_pixel", [[x, y], color, termDays, price * 1_000_000], boxes, payment)
+  await callApp(
+    "mint_pixel",
+    [[x, y], color.map(c => c * 255), termDays, price],
+    boxes,
+    payment,
+  )
 }
 
 export async function buyPixel(
@@ -217,25 +200,35 @@ export async function buyPixel(
   price: number,
 ) {
   const boxes = [{ appIndex: appID, name: pixelBoxName(x, y) }]
-  const [taxPerDay, { price: lastPrice }] = await Promise.all([getTaxPerDay(), getPixel(x, y)])
-  const deposit = calcDeposit(termDays, price * 1_000_000, taxPerDay)
+  const [taxPerDay, { price: lastPrice }] = await Promise.all([
+    getTaxPerDay(),
+    getPixel(x, y),
+  ])
+  const deposit = calcDeposit(termDays, price, taxPerDay)
   const payment = lastPrice + deposit
-  await callApp("buy_pixel", [[x, y], color, termDays, price * 1_000_000], boxes, payment)
+  await callApp(
+    "buy_pixel",
+    [[x, y], color.map(c => c * 255), termDays, price],
+    boxes,
+    payment,
+  )
 }
 
 export async function updatePixelColor(x: number, y: number, color: Color) {
   const boxes = [{ appIndex: appID, name: pixelBoxName(x, y) }]
-  await callApp("update_pixel_color", [[x, y], color], boxes)
+  await callApp("update_pixel_color", [[x, y], color.map(c => c * 255)], boxes)
 }
 
 export async function updatePixelTermDays(
   x: number,
   y: number,
-  color: Color,
   termDays: number,
 ) {
   const boxes = [{ appIndex: appID, name: pixelBoxName(x, y) }]
-  const [taxPerDay, { price, deposit: lastDeposit }] = await Promise.all([getTaxPerDay(), getPixel(x, y)])
+  const [taxPerDay, { price, deposit: lastDeposit }] = await Promise.all([
+    getTaxPerDay(),
+    getPixel(x, y),
+  ])
   const deposit = calcDeposit(termDays, price, taxPerDay)
   let payment
   if (deposit > lastDeposit) {
@@ -244,19 +237,23 @@ export async function updatePixelTermDays(
   await callApp("update_pixel_term_days", [[x, y], termDays], boxes, payment)
 }
 
-export async function updatePixelPrice(
-  x: number,
-  y: number,
-  price: number,
-) {
+export async function updatePixelPrice(x: number, y: number, price: number) {
   const boxes = [{ appIndex: appID, name: pixelBoxName(x, y) }]
-  const [taxPerDay, { termDays, deposit: lastDeposit }] = await Promise.all([getTaxPerDay(), getPixel(x, y)])
-  const deposit = calcDeposit(termDays, price * 1_000_000, taxPerDay)
+  const [taxPerDay, { termDays, deposit: lastDeposit }] = await Promise.all([
+    getTaxPerDay(),
+    getPixel(x, y),
+  ])
+  const deposit = calcDeposit(termDays, price, taxPerDay)
   let payment
   if (deposit > lastDeposit) {
     payment = deposit - lastDeposit
   }
-  await callApp("update_pixel_price", [[x, y], price * 1_000_000], boxes, payment)
+  await callApp(
+    "update_pixel_price",
+    [[x, y], price],
+    boxes,
+    payment,
+  )
 }
 
 export async function burnPixel(x: number, y: number) {

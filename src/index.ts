@@ -1,6 +1,14 @@
 import { Application, Graphics, utils } from "pixi.js"
-import bluebird from "bluebird"
-import { getPixels, mintPixel } from "./contract"
+import {
+  account,
+  getPixels,
+  mintPixel,
+  buyPixel,
+  updatePixelColor,
+  updatePixelTermDays,
+  updatePixelPrice,
+  burnPixel,
+} from "./contract"
 import type { Color, Pixel } from "./contract"
 import "./index.css"
 
@@ -33,6 +41,9 @@ const $selectionTermEnd = document.getElementById(
 ) as unknown as HTMLSpanElement
 const $openBuyButton = document.getElementById(
   "openBuyButton",
+) as unknown as HTMLButtonElement
+const $burnPixelButton = document.getElementById(
+  "burnPixelButton",
 ) as unknown as HTMLButtonElement
 const $buy = document.getElementById("buy") as unknown as HTMLButtonElement
 const $buyColorR = document.getElementById(
@@ -152,13 +163,22 @@ function move(dx: number, dy: number) {
     const loadX = Math.abs(pos.x) % chunkSize >= chunkSize - size
     const loadY = Math.abs(pos.y) % chunkSize >= chunkSize - size
     if (loadX) {
-      loadChunk(Math.floor(pos.x / chunkSize) + pos.x >= 0 ? 1 : -1, Math.floor(pos.y / chunkSize))
+      loadChunk(
+        Math.floor(pos.x / chunkSize) + pos.x >= 0 ? 1 : -1,
+        Math.floor(pos.y / chunkSize),
+      )
     }
     if (loadY) {
-      loadChunk(Math.floor(pos.x / chunkSize), Math.floor(pos.y / chunkSize) + pos.y >= 0 ? 1 : -1)
+      loadChunk(
+        Math.floor(pos.x / chunkSize),
+        Math.floor(pos.y / chunkSize) + pos.y >= 0 ? 1 : -1,
+      )
     }
     if (loadX && loadY) {
-      loadChunk(Math.floor(pos.x / chunkSize) + pos.x >= 0 ? 1 : -1, Math.floor(pos.y / chunkSize) + pos.y >= 0 ? 1 : -1)
+      loadChunk(
+        Math.floor(pos.x / chunkSize) + pos.x >= 0 ? 1 : -1,
+        Math.floor(pos.y / chunkSize) + pos.y >= 0 ? 1 : -1,
+      )
     }
   }
 }
@@ -193,7 +213,7 @@ function select(x: number, y: number) {
       selected = {
         x,
         y,
-        color: { ...pixel.color },
+        color: [...pixel.color],
         termDays: pixel.termDays,
         price: pixel.price,
       }
@@ -217,9 +237,24 @@ function select(x: number, y: number) {
       $buyTermDays.value = "" + selected.termDays
       const deposit = selected.price * taxPerDay * selected.termDays
       $buyDeposit.innerText = `${(deposit / 1_000_000).toFixed(6)} ALGO`
-      $buyTotalCost.innerText = `${((pixel.price + deposit) / 1_000_000).toFixed(
-        6,
-      )} ALGO`
+      $buyTotalCost.innerText = `${(
+        (pixel.price + deposit) /
+        1_000_000
+      ).toFixed(6)} ALGO`
+
+      if (pixel.owner === account.addr) {
+        $openBuyButton.innerText = "Update"
+        $buyPixelButton.innerText = "Update"
+        $burnPixelButton.hidden = false
+      } else if (pixel.owner) {
+        $openBuyButton.innerText = "Buy"
+        $buyPixelButton.innerText = "Buy"
+        $burnPixelButton.hidden = true
+      } else {
+        $openBuyButton.innerText = "Mint"
+        $buyPixelButton.innerText = "Mint"
+        $burnPixelButton.hidden = true
+      }
     }
   }
   graphics.clear()
@@ -229,37 +264,21 @@ function select(x: number, y: number) {
 async function loadChunk(chunkX: number, chunkY: number) {
   const startX = chunkX * chunkSize - minCoord
   const startY = chunkY * chunkSize - minCoord
-  const promises = []
-  for (let i = 0; i < chunkSize / 2; i++) {
-    for (let j = 0; j < chunkSize / 2; j++) {
-      const loadPiece = async () => {
-        const pieceX = startX + i * 2
-        const pieceY = startY + j * 2
-        const piecePixels = await getPixels(pieceX, pieceY, 2, 2)
-        for (let i = 0; i < 2; i++) {
-          for (let j = 0; j < 2; j++) {
-            const x = pieceX + i
-            const y = pieceY + j
-            if (!pixels[x]) pixels[x] = []
-            pixels[x][y] = piecePixels[i][j]
-          }
-        }
-        drawCanvas()
-      }
-      promises.push(loadPiece())
+  const nextPixels = await getPixels(startX, startY, chunkSize, chunkSize)
+  for (let i = 0; i < chunkSize; i++) {
+    if (!pixels[startX + i]) pixels[startX + i] = []
+    for (let j = 0; j < chunkSize; j++) {
+      pixels[startX + i][startY + j] = nextPixels[i][j]
     }
   }
-  await bluebird.map(promises, () => {}, { concurrency: 10 })
+  drawCanvas()
 }
 
 drawCanvas()
-
-setTimeout(() => {
-  loadChunk(0, 0)
-  loadChunk(-1, 0)
-  loadChunk(0, -1)
-  loadChunk(-1, -1)
-}, 1000)
+loadChunk(0, 0)
+loadChunk(-1, 0)
+loadChunk(0, -1)
+loadChunk(-1, -1)
 
 let elapsed = 0
 app.ticker.add((dt) => {
@@ -385,6 +404,10 @@ $zoomOutButton.addEventListener("mousedown", (e) => {
 
 $openBuyButton.addEventListener("click", () => ($buy.hidden = false))
 
+$burnPixelButton.addEventListener("click", () => {
+  burnPixel(selected.x - minCoord, selected.y - minCoord)
+})
+
 $buyColorR.addEventListener("input", () => {
   selected.color[0] = parseInt($buyColorR.value) / 255
   graphics.clear()
@@ -419,4 +442,23 @@ $buyTermDays.addEventListener("input", () => {
   $buyTotalCost.innerText = `${((price + deposit) / 1_000_000).toFixed(6)} ALGO`
 })
 
-$buyPixelButton.addEventListener("click", () => {})
+$buyPixelButton.addEventListener("click", () => {
+  const { x, y } = selected
+  const owner = pixelAt(x, y).owner
+  if (owner === account.addr) {
+    const color = pixelAt(x, y).color
+    const termDays = pixelAt(x, y).termDays
+    const price = pixelAt(x, y).price
+    if (!selected.color.every((c, i) => (c === color[i]))) {
+      updatePixelColor(x - minCoord, y - minCoord, selected.color)
+    } else if (selected.termDays !== termDays) {
+      updatePixelTermDays(x - minCoord, y - minCoord, selected.termDays)
+    } else if (selected.price !== price) {
+      updatePixelPrice(x - minCoord, y - minCoord, selected.price)
+    }
+  } else if (owner !== null) {
+    buyPixel(x - minCoord, y - minCoord, selected.color, selected.termDays, selected.price)
+  } else {
+    mintPixel(x - minCoord, y - minCoord, selected.color, selected.termDays, selected.price)
+  }
+})
