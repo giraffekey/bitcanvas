@@ -5,24 +5,22 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
-
-	"github.com/algorand/go-algorand-sdk/v2/types"
 )
 
 type Global struct {
-	Key   string `json:"key" validate:"required"`
+	Key   string `json:"key"   validate:"required"`
 	Value uint64 `json:"value" validate:"required"`
 }
 
 type Pixel struct {
-	X           uint32  `json:"x" validate:"required"`
-	Y           uint32  `json:"y" validate:"required"`
-	Owner       string  `json:"owner" validate:"required"`
-	Color       [3]byte `json:"color" validate:"required"`
+	X           uint32  `json:"x"           validate:"required"`
+	Y           uint32  `json:"y"           validate:"required"`
+	Owner       string  `json:"owner"       validate:"required"`
+	Color       [3]byte `json:"color"       validate:"required"`
 	TermBeginAt uint64  `json:"termBeginAt" validate:"required"`
-	TermDays    uint32  `json:"termDays" validate:"required"`
-	Price       uint64  `json:"price" validate:"required"`
-	Deposit     uint64  `json:"deposit" validate:"required"`
+	TermDays    uint32  `json:"termDays"    validate:"required"`
+	Price       uint64  `json:"price"       validate:"required"`
+	Deposit     uint64  `json:"deposit"     validate:"required"`
 }
 
 func insertGlobal(key string, value uint64) error {
@@ -152,14 +150,12 @@ func FindPixel(x uint32, y uint32) (Pixel, error) {
 	err := DB.Database("indexer").Collection("pixels").FindOne(ctx, bson.M{"x": x, "y": y}).Decode(&pixel)
 	if err != nil {
 		if err.Error() == "mongo: no documents in result" {
-			zeroAddress, _ := types.EncodeAddress(make([]byte, 32))
-
 			mintFee, err := FindMintFee()
 			if err != nil {
 				return Pixel{}, err
 			}
 
-			return Pixel{x, y, zeroAddress, [3]byte{255, 255, 255}, 0, 0, mintFee, 0}, nil
+			return Pixel{x, y, ZeroAddress, [3]byte{255, 255, 255}, 0, 0, mintFee, 0}, nil
 		} else {
 			return Pixel{}, err
 		}
@@ -197,12 +193,12 @@ func UpdatePixel(pixel Pixel) error {
 
 	filter := bson.M{"x": pixel.X, "y": pixel.Y}
 	update := bson.M{"$set": bson.M{
-		"owner": pixel.Owner,
-		"color": pixel.Color,
+		"owner":       pixel.Owner,
+		"color":       pixel.Color,
 		"termBeginAt": pixel.TermBeginAt,
-		"termDays": pixel.TermDays,
-		"price": pixel.Price,
-		"deposit": pixel.Deposit,
+		"termDays":    pixel.TermDays,
+		"price":       pixel.Price,
+		"deposit":     pixel.Deposit,
 	}}
 	_, err := DB.Database("indexer").Collection("pixels").UpdateOne(ctx, filter, update)
 	return err

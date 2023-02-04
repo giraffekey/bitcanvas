@@ -15,8 +15,8 @@ import (
 const (
 	indexerAddress string = "https://algoindexer.testnet.algoexplorerapi.io"
 	indexerToken   string = ""
-	appID          uint64 = 156697068
-	appIDRound     uint64 = 27436369
+	appID          uint64 = 156774230
+	appIDRound     uint64 = 27460058
 )
 
 func decodePosition(appArg []byte, methodArg abi.Arg) (uint32, uint32) {
@@ -73,7 +73,7 @@ func WatchTransactions() {
 			round = appIDRound
 			Clear()
 			InsertRound(appIDRound)
-			InsertMintFee(1_000_000)
+			InsertMintFee(10_000)
 			InsertTaxPerDay(1_750)
 			InsertTotalPixels(0)
 			InsertMaxPixels(0)
@@ -142,12 +142,30 @@ func WatchTransactions() {
 							if err != nil {
 								log.Println(err)
 							}
+							data := UpdateData{
+								Owner:       pixel.Owner,
+								Color:       pixel.Color,
+								TermBeginAt: pixel.TermBeginAt,
+								TermDays:    pixel.TermDays,
+								Price:       pixel.Price,
+							}
+							update := Update{pixel.X, pixel.Y, data}
+							go SendUpdate(update)
 						case "buy_pixel":
 							pixel := decodePixel(tx.Sender, tx.RoundTime, appArgs, method.Args)
 							err := UpdatePixel(pixel)
 							if err != nil {
 								log.Println(err)
 							}
+							data := UpdateData{
+								Owner:       pixel.Owner,
+								Color:       pixel.Color,
+								TermBeginAt: pixel.TermBeginAt,
+								TermDays:    pixel.TermDays,
+								Price:       pixel.Price,
+							}
+							update := Update{pixel.X, pixel.Y, data}
+							go SendUpdate(update)
 						case "update_pixel_color":
 							x, y := decodePosition(appArgs[1], method.Args[0])
 							color := decodeColor(appArgs[2], method.Args[1])
@@ -155,6 +173,9 @@ func WatchTransactions() {
 							if err != nil {
 								log.Println(err)
 							}
+							data := UpdateData{Color: color}
+							update := Update{x, y, data}
+							go SendUpdate(update)
 						case "update_pixel_term_days":
 							x, y := decodePosition(appArgs[1], method.Args[0])
 							termDays := decodeUint32(appArgs[2], method.Args[1])
@@ -162,6 +183,9 @@ func WatchTransactions() {
 							if err != nil {
 								log.Println(err)
 							}
+							data := UpdateData{TermDays: termDays}
+							update := Update{x, y, data}
+							go SendUpdate(update)
 						case "update_pixel_price":
 							x, y := decodePosition(appArgs[1], method.Args[0])
 							price := decodeUint64(appArgs[2], method.Args[1])
@@ -169,12 +193,19 @@ func WatchTransactions() {
 							if err != nil {
 								log.Println(err)
 							}
+							data := UpdateData{Price: price}
+							update := Update{x, y, data}
+							go SendUpdate(update)
 						case "burn_pixel":
 							x, y := decodePosition(appArgs[1], method.Args[0])
 							err := DeletePixel(x, y)
 							if err != nil {
 								log.Println(err)
 							}
+							mintFee, _ := FindMintFee()
+							data := UpdateData{ZeroAddress, [3]byte{255, 255, 255}, 0, 0, mintFee}
+							update := Update{x, y, data}
+							go SendUpdate(update)
 						}
 						break
 					}

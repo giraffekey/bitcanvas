@@ -71,6 +71,8 @@ const $buyPixelButton = document.getElementById(
   "buyPixelButton",
 ) as unknown as HTMLButtonElement
 
+const ZERO_ADDRESS = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
+
 const app = new Application({
   width: window.innerWidth,
   height: window.innerHeight,
@@ -79,6 +81,9 @@ const app = new Application({
 
 document.body.appendChild(app.view as unknown as Node)
 
+const graphics = new Graphics()
+app.stage.addChild(graphics)
+
 interface Selected {
   x: number
   y: number
@@ -86,8 +91,6 @@ interface Selected {
   termDays: number
   price: number
 }
-
-const graphics = new Graphics()
 
 const minCoord = -2147483648
 const maxCoord = 2147483647
@@ -146,7 +149,41 @@ function drawCanvas() {
   }
 }
 
-app.stage.addChild(graphics)
+async function loadChunk(chunkX: number, chunkY: number) {
+  const startX = chunkX * chunkSize - minCoord
+  const startY = chunkY * chunkSize - minCoord
+  const nextPixels = await getPixels(startX, startY, chunkSize, chunkSize)
+  for (let i = 0; i < chunkSize; i++) {
+    if (!pixels[startX + i]) pixels[startX + i] = []
+    for (let j = 0; j < chunkSize; j++) {
+      pixels[startX + i][startY + j] = nextPixels[i][j]
+    }
+  }
+  drawCanvas()
+}
+
+function loadChunks() {
+  const loadX = Math.abs(pos.x) % chunkSize >= chunkSize - size
+  const loadY = Math.abs(pos.y) % chunkSize >= chunkSize - size
+  if (loadX) {
+    loadChunk(
+      Math.floor(pos.x / chunkSize) + pos.x >= 0 ? 1 : -1,
+      Math.floor(pos.y / chunkSize),
+    )
+  }
+  if (loadY) {
+    loadChunk(
+      Math.floor(pos.x / chunkSize),
+      Math.floor(pos.y / chunkSize) + pos.y >= 0 ? 1 : -1,
+    )
+  }
+  if (loadX && loadY) {
+    loadChunk(
+      Math.floor(pos.x / chunkSize) + pos.x >= 0 ? 1 : -1,
+      Math.floor(pos.y / chunkSize) + pos.y >= 0 ? 1 : -1,
+    )
+  }
+}
 
 function move(dx: number, dy: number) {
   if (dx != 0 || dy != 0) {
@@ -159,27 +196,7 @@ function move(dx: number, dy: number) {
     $position.innerText = `(${Math.floor(pos.x)}, ${Math.floor(pos.y)})`
     graphics.clear()
     drawCanvas()
-
-    const loadX = Math.abs(pos.x) % chunkSize >= chunkSize - size
-    const loadY = Math.abs(pos.y) % chunkSize >= chunkSize - size
-    if (loadX) {
-      loadChunk(
-        Math.floor(pos.x / chunkSize) + pos.x >= 0 ? 1 : -1,
-        Math.floor(pos.y / chunkSize),
-      )
-    }
-    if (loadY) {
-      loadChunk(
-        Math.floor(pos.x / chunkSize),
-        Math.floor(pos.y / chunkSize) + pos.y >= 0 ? 1 : -1,
-      )
-    }
-    if (loadX && loadY) {
-      loadChunk(
-        Math.floor(pos.x / chunkSize) + pos.x >= 0 ? 1 : -1,
-        Math.floor(pos.y / chunkSize) + pos.y >= 0 ? 1 : -1,
-      )
-    }
+    loadChunks()
   }
 }
 
@@ -261,17 +278,33 @@ function select(x: number, y: number) {
   drawCanvas()
 }
 
-async function loadChunk(chunkX: number, chunkY: number) {
-  const startX = chunkX * chunkSize - minCoord
-  const startY = chunkY * chunkSize - minCoord
-  const nextPixels = await getPixels(startX, startY, chunkSize, chunkSize)
-  for (let i = 0; i < chunkSize; i++) {
-    if (!pixels[startX + i]) pixels[startX + i] = []
-    for (let j = 0; j < chunkSize; j++) {
-      pixels[startX + i][startY + j] = nextPixels[i][j]
-    }
+interface Update {
+  x: number
+  y: number
+  data: {
+    owner?: string
+    color?: Color
+    termBeginAt?: number
+    termDays?: number
+    price?: number
+    deposit?: number
   }
-  drawCanvas()
+}
+
+function waitForUpdates() {
+  const ws = new WebSocket("ws://localhost:5000/ws")
+  ws.onmessage = async (event) => {
+    const data = new TextDecoder().decode(await event.data.arrayBuffer())
+    const update = <Update>JSON.parse(data)
+    if (update.data.owner) {
+      update.data.owner = update.data.owner === ZERO_ADDRESS ? null : update.data.owner
+    }
+    if (update.data.color) {
+      update.data.color = <Color>update.data.color.map(c => c / 255)
+    }
+    pixels[update.x][update.y] = { ...pixels[update.x][update.y], ...update.data }
+    drawCanvas()
+  }
 }
 
 drawCanvas()
@@ -279,6 +312,7 @@ loadChunk(0, 0)
 loadChunk(-1, 0)
 loadChunk(0, -1)
 loadChunk(-1, -1)
+waitForUpdates()
 
 let elapsed = 0
 app.ticker.add((dt) => {
