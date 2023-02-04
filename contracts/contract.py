@@ -27,7 +27,7 @@ class Canvas(Application):
 
 	mint_fee = ApplicationStateValue(
 		stack_type=TealType.uint64,
-		default=Int(1_000_000),
+		default=Int(10_000),
 		descr="Price for an unowned pixel",
 	)
 
