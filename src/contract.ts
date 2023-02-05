@@ -116,23 +116,43 @@ export async function updateTaxPerDay(taxPerDay: number) {
 }
 
 export async function getMintFee(): Promise<number> {
-  const [mintFee] = await callApp("get_mint_fee", [])
-  return Number(mintFee as bigint)
+  try {
+    const res = await axios.get(`${INDEXER_API}/mint-fee`)
+    return res.data.value
+  } catch (e) {
+    const [mintFee] = await callApp("get_mint_fee", [])
+    return Number(mintFee as bigint)
+  }
 }
 
 export async function getTaxPerDay(): Promise<number> {
-  const [taxPerDay] = await callApp("get_tax_per_day", [])
-  return Number(taxPerDay as bigint)
+  try {
+    const res = await axios.get(`${INDEXER_API}/tax-per-day`)
+    return res.data.value
+  } catch (e) {
+    const [taxPerDay] = await callApp("get_tax_per_day", [])
+    return Number(taxPerDay as bigint)
+  }
 }
 
 export async function getTotalPixels(): Promise<number> {
-  const [totalPixels] = await callApp("get_total_pixels", [])
-  return Number(totalPixels as bigint)
+  try {
+    const res = await axios.get(`${INDEXER_API}/total-pixels`)
+    return res.data.value
+  } catch (e) {
+    const [totalPixels] = await callApp("get_total_pixels", [])
+    return Number(totalPixels as bigint)
+  }
 }
 
 export async function getMaxPixels(): Promise<number> {
-  const [maxPixels] = await callApp("get_max_pixels", [])
-  return Number(maxPixels as bigint)
+  try {
+    const res = await axios.get(`${INDEXER_API}/max-pixels`)
+    return res.data.value
+  } catch (e) {
+    const [maxPixels] = await callApp("get_max_pixels", [])
+    return Number(maxPixels as bigint)
+  }
 }
 
 export async function allocatePixels(amount: number) {
@@ -141,17 +161,27 @@ export async function allocatePixels(amount: number) {
 }
 
 export async function getPixel(x: number, y: number): Promise<Pixel> {
-  const boxes = [{ appIndex: appID, name: pixelBoxName(x, y) }]
-  const [pixel] = await callApp("get_pixel", [[x, y]], boxes)
-  const [owner, color, termBeginAt, termDays, price, deposit] =
-    pixel as ABIValue[]
-  return <Pixel>{
-    owner: owner === ZERO_ADDRESS ? null : owner,
-    color: (color as bigint[]).map((c) => Number(c) / 255),
-    termBeginAt: Number(termBeginAt as bigint),
-    termDays: Number(termDays as bigint),
-    price: Number(price as bigint),
-    deposit: Number(deposit as bigint),
+  try {
+    const res = await axios.get(`${INDEXER_API}/pixel`, { params: { x, y } })
+    const pixel = <Pixel>res.data
+    return {
+      ...pixel,
+      owner: pixel.owner === ZERO_ADDRESS ? null : pixel.owner,
+      color: <Color>pixel.color.map(c => c / 255),
+    }
+  } catch (e) {
+    const boxes = [{ appIndex: appID, name: pixelBoxName(x, y) }]
+    const [pixel] = await callApp("get_pixel", [[x, y]], boxes)
+    const [owner, color, termBeginAt, termDays, price, deposit] =
+      pixel as ABIValue[]
+    return <Pixel>{
+      owner: owner === ZERO_ADDRESS ? null : owner,
+      color: (color as bigint[]).map((c) => Number(c) / 255),
+      termBeginAt: Number(termBeginAt as bigint),
+      termDays: Number(termDays as bigint),
+      price: Number(price as bigint),
+      deposit: Number(deposit as bigint),
+    }
   }
 }
 

@@ -131,6 +131,54 @@ func socket(c echo.Context) error {
 	return nil
 }
 
+type ValueResponse struct {
+	Value uint64 `json:"value" validate:"required"`
+}
+
+func getMintFee(c echo.Context) error {
+	mintFee, err := FindMintFee()
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	res := ValueResponse{mintFee}
+	return c.JSON(http.StatusOK, res)
+}
+
+func getTaxPerDay(c echo.Context) error {
+	taxPerDay, err := FindTaxPerDay()
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	res := ValueResponse{taxPerDay}
+	return c.JSON(http.StatusOK, res)
+}
+
+func getTotalPixels(c echo.Context) error {
+	totalPixels, err := FindTotalPixels()
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	res := ValueResponse{totalPixels}
+	return c.JSON(http.StatusOK, res)
+}
+
+func getMaxPixels(c echo.Context) error {
+	maxPixels, err := FindMaxPixels()
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	res := ValueResponse{maxPixels}
+	return c.JSON(http.StatusOK, res)
+}
+
 type PixelResponse struct {
 	Owner       string  `json:"owner"       validate:"required"`
 	Color       [3]byte `json:"color"       validate:"required"`
@@ -221,6 +269,10 @@ func main() {
 	e.Use(middleware.Recover())
 
 	e.GET("/ws", socket)
+	e.GET("/mint-fee", getMintFee)
+	e.GET("/tax-per-day", getTaxPerDay)
+	e.GET("/total-pixels", getTotalPixels)
+	e.GET("/max-pixels", getMaxPixels)
 	e.GET("/pixel", getPixel)
 	e.GET("/pixels", getPixels)
 
