@@ -4,7 +4,7 @@
   publish = "build"
 
 [build.environment]
-  PYTHON_VERSION = "3.10.6"
+  PYTHON_VERSION = "3.8"
   GO_IMPORT_PATH = "github.com/giraffekey/bitcanvas/indexer"
   GO111MODULE = "on"
 
