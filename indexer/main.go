@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -22,13 +23,15 @@ import (
 	"github.com/algorand/go-algorand-sdk/v2/types"
 )
 
-var (	
+var (
 	ZeroAddress, _ = types.EncodeAddress(make([]byte, 32))
-	upgrader = websocket.Upgrader{
+	upgrader       = websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
-	DB = connectDB("mongodb://localhost:27017")
-	MQ = connectMQ("amqp://localhost:5672")
+	mongodbURI, _  = os.LookupEnv("MONGODB_URI")
+	rabbitmqURI, _ = os.LookupEnv("RABBITMQ_URI")
+	DB             = connectDB(mongodbURI)
+	MQ             = connectMQ(rabbitmqURI)
 )
 
 func connectDB(url string) *mongo.Client {
@@ -48,25 +51,40 @@ func connectDB(url string) *mongo.Client {
 	return client
 }
 
-func connectMQ(url string) struct {*amqp.Connection; *amqp.Channel} {
+func connectMQ(url string) struct {
+	*amqp.Connection
+	*amqp.Channel
+} {
 	conn, err := amqp.Dial(url)
 	if err != nil {
 		log.Fatal(err)
-		return struct {*amqp.Connection; *amqp.Channel} {}
+		return struct {
+			*amqp.Connection
+			*amqp.Channel
+		}{}
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
 		log.Fatal(err)
-		return struct {*amqp.Connection; *amqp.Channel} {}
+		return struct {
+			*amqp.Connection
+			*amqp.Channel
+		}{}
 	}
 
 	if err := ch.ExchangeDeclare("updates", "fanout", false, true, false, false, nil); err != nil {
 		log.Fatal(err)
-		return struct {*amqp.Connection; *amqp.Channel} {}
+		return struct {
+			*amqp.Connection
+			*amqp.Channel
+		}{}
 	}
 
-	return struct {*amqp.Connection; *amqp.Channel} {conn, ch}
+	return struct {
+		*amqp.Connection
+		*amqp.Channel
+	}{conn, ch}
 }
 
 type UpdateData struct {
