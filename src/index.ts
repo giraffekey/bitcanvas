@@ -81,8 +81,11 @@ const app = new Application({
 
 document.body.appendChild(app.view as unknown as Node)
 
-const graphics = new Graphics()
-app.stage.addChild(graphics)
+const bgGraphics = new Graphics()
+const pixelGraphics = new Graphics()
+
+app.stage.addChild(bgGraphics)
+app.stage.addChild(pixelGraphics)
 
 interface Selected {
   x: number
@@ -108,13 +111,33 @@ let width = 32
 let size = window.innerWidth / width
 let height = window.innerHeight / size
 let speed = width / 4
+let bgOffset = 0
 
 function pixelAt(x: number, y: number): Pixel | undefined {
   if (!pixels[x - minCoord]) return undefined
   return pixels[x - minCoord][y - minCoord]
 }
 
-function drawCanvas() {
+function drawBackground() {
+  bgGraphics.clear()
+
+  bgGraphics.beginFill(utils.rgb2hex([0.6, 0.6, 0.6]))
+
+  for (let i = 0; i < width * 0.75 + 1; i++) {
+    const x = (i - 1) * size * 2 + bgOffset % (size * 2)
+    bgGraphics.moveTo(x, 0)
+    bgGraphics.lineTo(x + size, 0)
+    bgGraphics.lineTo(x - window.innerHeight + size, window.innerHeight)
+    bgGraphics.lineTo(x - window.innerHeight, window.innerHeight)
+    bgGraphics.closePath()
+  }
+
+  bgGraphics.endFill()
+}
+
+function drawPixels() {
+  pixelGraphics.clear()
+
   for (let i = 0; i < width + 1; i++) {
     for (let j = 0; j < height + 1; j++) {
       const pixel = pixelAt(Math.floor(pos.x) + i, Math.floor(pos.y) + j)
@@ -130,20 +153,20 @@ function drawCanvas() {
             1.0 - selected.color[1],
             1.0 - selected.color[2],
           ]
-          graphics.lineStyle(size / 10, utils.rgb2hex(inverse), 1, 0)
-          graphics.beginFill(utils.rgb2hex(selected.color))
+          pixelGraphics.lineStyle(size / 10, utils.rgb2hex(inverse), 1, 0)
+          pixelGraphics.beginFill(utils.rgb2hex(selected.color))
         } else {
-          graphics.lineStyle(0)
-          graphics.beginFill(utils.rgb2hex(pixel.color))
+          pixelGraphics.lineStyle(0)
+          pixelGraphics.beginFill(utils.rgb2hex(pixel.color))
         }
 
-        graphics.drawRect(
+        pixelGraphics.drawRect(
           (i - (pos.x - Math.floor(pos.x))) * size,
           (j - (pos.y - Math.floor(pos.y))) * size,
           size,
           size,
         )
-        graphics.endFill()
+        pixelGraphics.endFill()
       }
     }
   }
@@ -159,7 +182,7 @@ async function loadChunk(chunkX: number, chunkY: number) {
       pixels[startX + i][startY + j] = nextPixels[i][j]
     }
   }
-  drawCanvas()
+  drawPixels()
 }
 
 function loadChunks() {
@@ -194,8 +217,7 @@ function move(dx: number, dy: number) {
     if (pos.y < minCoord) pos.y = minCoord
     if (pos.y > maxCoord - height) pos.y = maxCoord - height
     $position.innerText = `(${Math.floor(pos.x)}, ${Math.floor(pos.y)})`
-    graphics.clear()
-    drawCanvas()
+    drawPixels()
     loadChunks()
   }
 }
@@ -274,8 +296,7 @@ function select(x: number, y: number) {
       }
     }
   }
-  graphics.clear()
-  drawCanvas()
+  drawPixels()
 }
 
 interface Update {
@@ -303,23 +324,32 @@ function waitForUpdates() {
       update.data.color = <Color>update.data.color.map(c => c / 255)
     }
     pixels[update.x][update.y] = { ...pixels[update.x][update.y], ...update.data }
-    drawCanvas()
+    drawPixels()
   }
 }
 
-drawCanvas()
+drawBackground()
+drawPixels()
 loadChunk(0, 0)
 loadChunk(-1, 0)
 loadChunk(0, -1)
 loadChunk(-1, -1)
 waitForUpdates()
 
-let elapsed = 0
+let bgUpdate = 0
+let pixelsUpdate = 0
 app.ticker.add((dt) => {
-  elapsed += dt
+  bgUpdate += dt
+  bgOffset += dt
+  if (bgUpdate >= 2) {
+    bgUpdate = bgUpdate % 2
+    drawBackground()
+  }
+
+  pixelsUpdate += dt
   const threshold = Math.ceil((width / maxWidth) * 4)
-  if (elapsed >= threshold) {
-    elapsed = elapsed % threshold
+  if (pixelsUpdate >= threshold) {
+    pixelsUpdate = pixelsUpdate % threshold
     move((dt / 60) * dir.x * speed, (dt / 60) * dir.y * speed)
     zoom((dt / 60) * dir.z * 10)
   }
@@ -403,8 +433,8 @@ window.addEventListener("resize", () => {
   app.renderer.resize(window.innerWidth, window.innerHeight)
   size = window.innerWidth / width
   height = window.innerHeight / size
-  graphics.clear()
-  drawCanvas()
+  pixelGraphics.clear()
+  drawPixels()
 })
 
 let grabbing = false
@@ -444,20 +474,20 @@ $burnPixelButton.addEventListener("click", () => {
 
 $buyColorR.addEventListener("input", () => {
   selected.color[0] = parseInt($buyColorR.value) / 255
-  graphics.clear()
-  drawCanvas()
+  pixelGraphics.clear()
+  drawPixels()
 })
 
 $buyColorG.addEventListener("input", () => {
   selected.color[1] = parseInt($buyColorG.value) / 255
-  graphics.clear()
-  drawCanvas()
+  pixelGraphics.clear()
+  drawPixels()
 })
 
 $buyColorB.addEventListener("input", () => {
   selected.color[2] = parseInt($buyColorB.value) / 255
-  graphics.clear()
-  drawCanvas()
+  pixelGraphics.clear()
+  drawPixels()
 })
 
 $buyPrice.addEventListener("input", () => {
