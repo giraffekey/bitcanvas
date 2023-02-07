@@ -17,7 +17,7 @@ export interface Pixel {
 const ZERO_ADDRESS =
   "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
 const PIXEL_MIN_BALANCE = 27700
-const INDEXER_API = "https://bitcanvas.netlify.app"
+const INDEXER_API = "http://localhost:5000"
 
 const appID = 156774230
 const contract = new algosdk.ABIContract(contractABI)

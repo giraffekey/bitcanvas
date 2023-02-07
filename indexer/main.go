@@ -294,5 +294,5 @@ func main() {
 	e.GET("/api/pixel", getPixel)
 	e.GET("/api/pixels", getPixels)
 
-	e.Logger.Fatal(e.Start(""))
+	e.Logger.Fatal(e.Start(":5000"))
 }
