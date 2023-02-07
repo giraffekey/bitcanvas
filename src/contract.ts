@@ -17,7 +17,7 @@ export interface Pixel {
 const ZERO_ADDRESS =
   "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
 const PIXEL_MIN_BALANCE = 27700
-const INDEXER_API = "https://bitcanvas.netlify.app/api"
+const INDEXER_API = "https://bitcanvas.netlify.app"
 
 const appID = 156774230
 const contract = new algosdk.ABIContract(contractABI)
@@ -118,7 +118,7 @@ export async function updateTaxPerDay(taxPerDay: number) {
 
 export async function getMintFee(): Promise<number> {
   try {
-    const res = await axios.get(`${INDEXER_API}/mint-fee`)
+    const res = await axios.get(`${INDEXER_API}/api/mint-fee`)
     return res.data.value
   } catch (e) {
     const [mintFee] = await callApp("get_mint_fee", [])
@@ -128,7 +128,7 @@ export async function getMintFee(): Promise<number> {
 
 export async function getTaxPerDay(): Promise<number> {
   try {
-    const res = await axios.get(`${INDEXER_API}/tax-per-day`)
+    const res = await axios.get(`${INDEXER_API}/api/tax-per-day`)
     return res.data.value
   } catch (e) {
     const [taxPerDay] = await callApp("get_tax_per_day", [])
@@ -138,7 +138,7 @@ export async function getTaxPerDay(): Promise<number> {
 
 export async function getTotalPixels(): Promise<number> {
   try {
-    const res = await axios.get(`${INDEXER_API}/total-pixels`)
+    const res = await axios.get(`${INDEXER_API}/api/total-pixels`)
     return res.data.value
   } catch (e) {
     const [totalPixels] = await callApp("get_total_pixels", [])
@@ -148,7 +148,7 @@ export async function getTotalPixels(): Promise<number> {
 
 export async function getMaxPixels(): Promise<number> {
   try {
-    const res = await axios.get(`${INDEXER_API}/max-pixels`)
+    const res = await axios.get(`${INDEXER_API}/api/max-pixels`)
     return res.data.value
   } catch (e) {
     const [maxPixels] = await callApp("get_max_pixels", [])
@@ -163,7 +163,7 @@ export async function allocatePixels(amount: number) {
 
 export async function getPixel(x: number, y: number): Promise<Pixel> {
   try {
-    const res = await axios.get(`${INDEXER_API}/pixel`, { params: { x, y } })
+    const res = await axios.get(`${INDEXER_API}/api/pixel`, { params: { x, y } })
     const pixel = <Pixel>res.data
     return {
       ...pixel,
@@ -192,7 +192,7 @@ export async function getPixels(
   width: number,
   height: number,
 ): Promise<Pixel[][]> {
-  const res = await axios.get(`${INDEXER_API}/pixels`, {
+  const res = await axios.get(`${INDEXER_API}/api/pixels`, {
     params: { x, y, width, height },
   })
   const pixels = <Pixel[][]>res.data

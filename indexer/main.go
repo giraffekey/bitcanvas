@@ -286,13 +286,13 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	e.GET("/ws", socket)
-	e.GET("/mint-fee", getMintFee)
-	e.GET("/tax-per-day", getTaxPerDay)
-	e.GET("/total-pixels", getTotalPixels)
-	e.GET("/max-pixels", getMaxPixels)
-	e.GET("/pixel", getPixel)
-	e.GET("/pixels", getPixels)
+	e.GET("/api/ws", socket)
+	e.GET("/api/mint-fee", getMintFee)
+	e.GET("/api/tax-per-day", getTaxPerDay)
+	e.GET("/api/total-pixels", getTotalPixels)
+	e.GET("/api/max-pixels", getMaxPixels)
+	e.GET("/api/pixel", getPixel)
+	e.GET("/api/pixels", getPixels)
 
-	e.Logger.Fatal(e.Start(":5000"))
+	e.Logger.Fatal(e.Start(""))
 }
