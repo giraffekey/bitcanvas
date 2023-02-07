@@ -14,9 +14,10 @@ export interface Pixel {
   deposit: number
 }
 
-const ZERO_ADDRESS = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
+const ZERO_ADDRESS =
+  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
 const PIXEL_MIN_BALANCE = 27700
-const INDEXER_API = "http://localhost:5000"
+const INDEXER_API = "https://bitcanvas.netlify.app/api"
 
 const appID = 156774230
 const contract = new algosdk.ABIContract(contractABI)
@@ -167,7 +168,7 @@ export async function getPixel(x: number, y: number): Promise<Pixel> {
     return {
       ...pixel,
       owner: pixel.owner === ZERO_ADDRESS ? null : pixel.owner,
-      color: <Color>pixel.color.map(c => c / 255),
+      color: <Color>pixel.color.map((c) => c / 255),
     }
   } catch (e) {
     const boxes = [{ appIndex: appID, name: pixelBoxName(x, y) }]
@@ -185,14 +186,23 @@ export async function getPixel(x: number, y: number): Promise<Pixel> {
   }
 }
 
-export async function getPixels(x: number, y: number, width: number, height: number): Promise<Pixel[][]> {
-  const res = await axios.get(`${INDEXER_API}/pixels`, { params: { x, y, width, height } })
+export async function getPixels(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): Promise<Pixel[][]> {
+  const res = await axios.get(`${INDEXER_API}/pixels`, {
+    params: { x, y, width, height },
+  })
   const pixels = <Pixel[][]>res.data
-  return pixels.map(col => col.map(pixel => ({
-    ...pixel,
-    owner: pixel.owner === ZERO_ADDRESS ? null : pixel.owner,
-    color: <Color>pixel.color.map(c => c / 255),
-  })))
+  return pixels.map((col) =>
+    col.map((pixel) => ({
+      ...pixel,
+      owner: pixel.owner === ZERO_ADDRESS ? null : pixel.owner,
+      color: <Color>pixel.color.map((c) => c / 255),
+    })),
+  )
 }
 
 export async function mintPixel(
@@ -216,7 +226,7 @@ export async function mintPixel(
   }
   await callApp(
     "mint_pixel",
-    [[x, y], color.map(c => c * 255), termDays, price],
+    [[x, y], color.map((c) => c * 255), termDays, price],
     boxes,
     payment,
   )
@@ -238,7 +248,7 @@ export async function buyPixel(
   const payment = lastPrice + deposit
   await callApp(
     "buy_pixel",
-    [[x, y], color.map(c => c * 255), termDays, price],
+    [[x, y], color.map((c) => c * 255), termDays, price],
     boxes,
     payment,
   )
@@ -246,7 +256,11 @@ export async function buyPixel(
 
 export async function updatePixelColor(x: number, y: number, color: Color) {
   const boxes = [{ appIndex: appID, name: pixelBoxName(x, y) }]
-  await callApp("update_pixel_color", [[x, y], color.map(c => c * 255)], boxes)
+  await callApp(
+    "update_pixel_color",
+    [[x, y], color.map((c) => c * 255)],
+    boxes,
+  )
 }
 
 export async function updatePixelTermDays(
@@ -278,12 +292,7 @@ export async function updatePixelPrice(x: number, y: number, price: number) {
   if (deposit > lastDeposit) {
     payment = deposit - lastDeposit
   }
-  await callApp(
-    "update_pixel_price",
-    [[x, y], price],
-    boxes,
-    payment,
-  )
+  await callApp("update_pixel_price", [[x, y], price], boxes, payment)
 }
 
 export async function burnPixel(x: number, y: number) {
