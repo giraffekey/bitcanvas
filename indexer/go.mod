@@ -1,4 +1,4 @@
-module indexer
+module github.com/giraffekey/bitcanvas/indexer
 
 go 1.18
 
