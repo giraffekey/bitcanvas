@@ -1,0 +1,13 @@
+[build]
+  command = "./build.sh"
+  functions = "functions"
+  publish = "build"
+
+[build.environment]
+  GO_IMPORT_PATH = "github.com/giraffekey/bitcanvas/indexer"
+  GO111MODULE = "on"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/indexer/:splat"
+  status = 200
