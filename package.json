@@ -9,7 +9,7 @@
     "build:dev": "webpack --mode=development",
     "build:prod": "webpack --mode=production --node-env=production",
     "format": "prettier --plugin-search-dir . --write .",
-    "requirements": "pip3 install -r requirements.txt",
+    "requirements": "pip3 install -r contracts/requirements.txt",
     "deploy-contract": "python3 -m contracts.deploy"
   },
   "dependencies": {
