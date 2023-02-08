@@ -17,7 +17,8 @@ const config = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: "index.html",
+      template: "public/index.html",
+      favicon: "public/images/favicon.ico",
     }),
     new MiniCssExtractPlugin(),
     new NodePolyfillPlugin(),
@@ -30,8 +31,8 @@ const config = {
         exclude: ["/node_modules/"],
       },
       {
-        test: /\.(eot|svg|ttf|woff|woff2|png|jpg|gif)$/i,
-        type: "asset",
+        test: /\.ico$/i,
+        loader: "file-loader",
       },
       {
         test: /\.css$/i,
@@ -50,6 +51,10 @@ const config = {
             },
           },
         ],
+      },
+      {
+        test: /\.(eot|svg|ttf|woff|woff2|png|jpg|gif)$/i,
+        type: "asset",
       },
     ],
   },
