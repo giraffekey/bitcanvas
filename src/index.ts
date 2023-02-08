@@ -456,9 +456,13 @@ window.addEventListener("resize", () => {
 })
 
 let grabbing = false
+let moved = false
 
 app.view.addEventListener("mousedown", (e: MouseEvent) => {
-  if (e.button === 0) grabbing = true
+  if (e.button === 0) {
+    grabbing = true
+    moved = false
+  }
 })
 
 app.view.addEventListener("mouseup", (e: MouseEvent) => {
@@ -466,14 +470,22 @@ app.view.addEventListener("mouseup", (e: MouseEvent) => {
 })
 
 app.view.addEventListener("mousemove", (e: MouseEvent) => {
-  if (grabbing) move(-e.movementX / size, -e.movementY / size)
+  if (grabbing) {
+    move(-e.movementX / size, -e.movementY / size)
+
+    if (Math.abs(e.movementX) > 2 || Math.abs(e.movementY) > 2) {
+      moved = true
+    }
+  }
 })
 
 app.view.addEventListener("click", (e: MouseEvent) => {
-  select(
-    Math.floor(e.clientX / size + pos.x),
-    Math.floor(e.clientY / size + pos.y),
-  )
+  if (!moved) {
+    select(
+      Math.floor(e.clientX / size + pos.x),
+      Math.floor(e.clientY / size + pos.y),
+    )
+  }
 })
 
 $zoomInButton.addEventListener("mousedown", (e) => {
