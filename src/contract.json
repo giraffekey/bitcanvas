@@ -1,1 +1,88 @@
-{"name": "Canvas", "methods": [{"name": "update_mint_fee", "args": [{"type": "uint64", "name": "mint_fee"}], "returns": {"type": "void"}}, {"name": "update_tax_per_day", "args": [{"type": "uint64", "name": "tax_per_day"}], "returns": {"type": "void"}}, {"name": "get_mint_fee", "args": [], "returns": {"type": "uint64"}}, {"name": "get_tax_per_day", "args": [], "returns": {"type": "uint64"}}, {"name": "get_total_pixels", "args": [], "returns": {"type": "uint64"}}, {"name": "get_max_pixels", "args": [], "returns": {"type": "uint64"}}, {"name": "allocate_pixels", "args": [{"type": "pay", "name": "pay"}, {"type": "uint64", "name": "amount"}], "returns": {"type": "void"}}, {"name": "get_pixel", "args": [{"type": "(uint32,uint32)", "name": "pos"}], "returns": {"type": "(address,(uint8,uint8,uint8),uint64,uint32,uint64,uint64)"}}, {"name": "mint_pixel", "args": [{"type": "pay", "name": "pay"}, {"type": "(uint32,uint32)", "name": "pos"}, {"type": "(uint8,uint8,uint8)", "name": "color"}, {"type": "uint32", "name": "term_days"}, {"type": "uint64", "name": "price"}], "returns": {"type": "void"}}, {"name": "buy_pixel", "args": [{"type": "pay", "name": "pay"}, {"type": "(uint32,uint32)", "name": "pos"}, {"type": "(uint8,uint8,uint8)", "name": "color"}, {"type": "uint32", "name": "term_days"}, {"type": "uint64", "name": "price"}], "returns": {"type": "void"}}, {"name": "update_pixel_color", "args": [{"type": "(uint32,uint32)", "name": "pos"}, {"type": "(uint8,uint8,uint8)", "name": "color"}], "returns": {"type": "void"}}, {"name": "update_pixel_term_days", "args": [{"type": "pay", "name": "pay"}, {"type": "(uint32,uint32)", "name": "pos"}, {"type": "uint32", "name": "term_days"}], "returns": {"type": "void"}}, {"name": "update_pixel_price", "args": [{"type": "pay", "name": "pay"}, {"type": "(uint32,uint32)", "name": "pos"}, {"type": "uint64", "name": "price"}], "returns": {"type": "void"}}, {"name": "burn_pixel", "args": [{"type": "(uint32,uint32)", "name": "pos"}], "returns": {"type": "void"}}], "networks": {}}
+{
+  "name": "Canvas",
+  "methods": [
+    {
+      "name": "update_mint_fee",
+      "args": [{ "type": "uint64", "name": "mint_fee" }],
+      "returns": { "type": "void" }
+    },
+    {
+      "name": "update_tax_per_day",
+      "args": [{ "type": "uint64", "name": "tax_per_day" }],
+      "returns": { "type": "void" }
+    },
+    { "name": "get_mint_fee", "args": [], "returns": { "type": "uint64" } },
+    { "name": "get_tax_per_day", "args": [], "returns": { "type": "uint64" } },
+    { "name": "get_total_pixels", "args": [], "returns": { "type": "uint64" } },
+    { "name": "get_max_pixels", "args": [], "returns": { "type": "uint64" } },
+    {
+      "name": "allocate_pixels",
+      "args": [
+        { "type": "pay", "name": "pay" },
+        { "type": "uint64", "name": "amount" }
+      ],
+      "returns": { "type": "void" }
+    },
+    {
+      "name": "get_pixel",
+      "args": [{ "type": "(uint32,uint32)", "name": "pos" }],
+      "returns": {
+        "type": "(address,(uint8,uint8,uint8),uint64,uint32,uint64,uint64)"
+      }
+    },
+    {
+      "name": "mint_pixel",
+      "args": [
+        { "type": "pay", "name": "pay" },
+        { "type": "(uint32,uint32)", "name": "pos" },
+        { "type": "(uint8,uint8,uint8)", "name": "color" },
+        { "type": "uint32", "name": "term_days" },
+        { "type": "uint64", "name": "price" }
+      ],
+      "returns": { "type": "void" }
+    },
+    {
+      "name": "buy_pixel",
+      "args": [
+        { "type": "pay", "name": "pay" },
+        { "type": "(uint32,uint32)", "name": "pos" },
+        { "type": "(uint8,uint8,uint8)", "name": "color" },
+        { "type": "uint32", "name": "term_days" },
+        { "type": "uint64", "name": "price" }
+      ],
+      "returns": { "type": "void" }
+    },
+    {
+      "name": "update_pixel_color",
+      "args": [
+        { "type": "(uint32,uint32)", "name": "pos" },
+        { "type": "(uint8,uint8,uint8)", "name": "color" }
+      ],
+      "returns": { "type": "void" }
+    },
+    {
+      "name": "update_pixel_term_days",
+      "args": [
+        { "type": "pay", "name": "pay" },
+        { "type": "(uint32,uint32)", "name": "pos" },
+        { "type": "uint32", "name": "term_days" }
+      ],
+      "returns": { "type": "void" }
+    },
+    {
+      "name": "update_pixel_price",
+      "args": [
+        { "type": "pay", "name": "pay" },
+        { "type": "(uint32,uint32)", "name": "pos" },
+        { "type": "uint64", "name": "price" }
+      ],
+      "returns": { "type": "void" }
+    },
+    {
+      "name": "burn_pixel",
+      "args": [{ "type": "(uint32,uint32)", "name": "pos" }],
+      "returns": { "type": "void" }
+    }
+  ],
+  "networks": {}
+}

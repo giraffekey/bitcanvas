@@ -1,6 +1,7 @@
 import { Application, Graphics, utils } from "pixi.js"
 import {
   account,
+  importWallet,
   getPixels,
   mintPixel,
   buyPixel,
@@ -20,6 +21,18 @@ const $zoomInButton = document.getElementById(
 ) as unknown as HTMLButtonElement
 const $zoomOutButton = document.getElementById(
   "zoomOutButton",
+) as unknown as HTMLButtonElement
+const $connectWalletButton = document.getElementById(
+  "connectWalletButton",
+) as unknown as HTMLButtonElement
+const $connectWallet = document.getElementById(
+  "connectWallet",
+) as unknown as HTMLDivElement
+const $mnemonic = document.getElementById(
+  "mnemonic",
+) as unknown as HTMLTextAreaElement
+const $importMnemonicButton = document.getElementById(
+  "importMnemonicButton",
 ) as unknown as HTMLButtonElement
 const $selection = document.getElementById(
   "selection",
@@ -71,7 +84,8 @@ const $buyPixelButton = document.getElementById(
   "buyPixelButton",
 ) as unknown as HTMLButtonElement
 
-const ZERO_ADDRESS = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
+const ZERO_ADDRESS =
+  "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ"
 
 const app = new Application({
   width: window.innerWidth,
@@ -121,10 +135,10 @@ function pixelAt(x: number, y: number): Pixel | undefined {
 function drawBackground() {
   bgGraphics.clear()
 
-  bgGraphics.beginFill(utils.rgb2hex([0.6, 0.6, 0.6]))
+  bgGraphics.beginFill(0x888888)
 
   for (let i = 0; i < width * 0.75 + 1; i++) {
-    const x = (i - 1) * size * 2 + bgOffset % (size * 2)
+    const x = (i - 1) * size * 2 + (bgOffset % (size * 2))
     bgGraphics.moveTo(x, 0)
     bgGraphics.lineTo(x + size, 0)
     bgGraphics.lineTo(x - window.innerHeight + size, window.innerHeight)
@@ -281,7 +295,7 @@ function select(x: number, y: number) {
         1_000_000
       ).toFixed(6)} ALGO`
 
-      if (pixel.owner === account.addr) {
+      if (account && pixel.owner === account.addr) {
         $openBuyButton.innerText = "Update"
         $buyPixelButton.innerText = "Update"
         $burnPixelButton.hidden = false
@@ -318,12 +332,16 @@ function waitForUpdates() {
     const data = new TextDecoder().decode(await event.data.arrayBuffer())
     const update = <Update>JSON.parse(data)
     if (update.data.owner) {
-      update.data.owner = update.data.owner === ZERO_ADDRESS ? null : update.data.owner
+      update.data.owner =
+        update.data.owner === ZERO_ADDRESS ? null : update.data.owner
     }
     if (update.data.color) {
-      update.data.color = <Color>update.data.color.map(c => c / 255)
+      update.data.color = <Color>update.data.color.map((c) => c / 255)
     }
-    pixels[update.x][update.y] = { ...pixels[update.x][update.y], ...update.data }
+    pixels[update.x][update.y] = {
+      ...pixels[update.x][update.y],
+      ...update.data,
+    }
     drawPixels()
   }
 }
@@ -466,6 +484,16 @@ $zoomOutButton.addEventListener("mousedown", (e) => {
   if (e.button === 0) dir.z = 1
 })
 
+$connectWalletButton.addEventListener("click", () => {
+  $connectWalletButton.hidden = true
+  $connectWallet.hidden = false
+})
+
+$importMnemonicButton.addEventListener("click", () => {
+  importWallet($mnemonic.value)
+  $connectWallet.hidden = true
+})
+
 $openBuyButton.addEventListener("click", () => ($buy.hidden = false))
 
 $burnPixelButton.addEventListener("click", () => {
@@ -509,11 +537,11 @@ $buyTermDays.addEventListener("input", () => {
 $buyPixelButton.addEventListener("click", () => {
   const { x, y } = selected
   const owner = pixelAt(x, y).owner
-  if (owner === account.addr) {
+  if (account && owner === account.addr) {
     const color = pixelAt(x, y).color
     const termDays = pixelAt(x, y).termDays
     const price = pixelAt(x, y).price
-    if (!selected.color.every((c, i) => (c === color[i]))) {
+    if (!selected.color.every((c, i) => c === color[i])) {
       updatePixelColor(x - minCoord, y - minCoord, selected.color)
     } else if (selected.termDays !== termDays) {
       updatePixelTermDays(x - minCoord, y - minCoord, selected.termDays)
@@ -521,8 +549,20 @@ $buyPixelButton.addEventListener("click", () => {
       updatePixelPrice(x - minCoord, y - minCoord, selected.price)
     }
   } else if (owner !== null) {
-    buyPixel(x - minCoord, y - minCoord, selected.color, selected.termDays, selected.price)
+    buyPixel(
+      x - minCoord,
+      y - minCoord,
+      selected.color,
+      selected.termDays,
+      selected.price,
+    )
   } else {
-    mintPixel(x - minCoord, y - minCoord, selected.color, selected.termDays, selected.price)
+    mintPixel(
+      x - minCoord,
+      y - minCoord,
+      selected.color,
+      selected.termDays,
+      selected.price,
+    )
   }
 })

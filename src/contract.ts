@@ -1,5 +1,5 @@
 import algosdk from "algosdk"
-import type { ABIValue, BoxReference } from "algosdk"
+import type { ABIValue, Account, BoxReference } from "algosdk"
 import axios from "axios"
 import contractABI from "./contract.json"
 
@@ -28,9 +28,7 @@ const algod = new algosdk.Algodv2(
   80,
 )
 
-const mnemonic =
-  "object march dream board model pitch actor plate jungle cream caution smoke electric muscle west melody attend come pencil empty kiwi magnet win abandon black"
-export const account = algosdk.mnemonicToSecretKey(mnemonic)
+export let account: Account | null = null
 
 function intToArray(i: number): Uint8Array {
   return Uint8Array.of(
@@ -80,6 +78,8 @@ async function callApp(
   boxes?: BoxReference[],
   payment?: number,
 ): Promise<ABIValue[]> {
+  if (account === null) throw new Error("wallet is not connected")
+
   const atc = new algosdk.AtomicTransactionComposer()
   const signer = algosdk.makeBasicAccountTransactionSigner(account)
   const suggestedParams = await algod.getTransactionParams().do()
@@ -106,6 +106,10 @@ async function callApp(
 
   const res = await atc.execute(algod, 4)
   return res.methodResults.map((result) => result.returnValue)
+}
+
+export function importWallet(mnemonic: string) {
+  account = algosdk.mnemonicToSecretKey(mnemonic)
 }
 
 export async function updateMintFee(mintFee: number) {
@@ -163,7 +167,9 @@ export async function allocatePixels(amount: number) {
 
 export async function getPixel(x: number, y: number): Promise<Pixel> {
   try {
-    const res = await axios.get(`${INDEXER_API}/api/pixel`, { params: { x, y } })
+    const res = await axios.get(`${INDEXER_API}/api/pixel`, {
+      params: { x, y },
+    })
     const pixel = <Pixel>res.data
     return {
       ...pixel,

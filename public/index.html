@@ -29,18 +29,39 @@
         -
       </button>
     </div>
-    <div
-      id="selection"
-      class="absolute right-8 top-8 bg-white p-3 border-b-2 border-gray-300 rounded-lg shadow-lg"
-      hidden
-    >
-      <p>Position: <span id="selectionPosition"></span></p>
-      <p>Owner: <span id="selectionOwner"></span></p>
-      <p>Color: <span id="selectionColor"></span></p>
-      <p>Price: <span id="selectionPrice"></span></p>
-      <p>Term end: <span id="selectionTermEnd"></span></p>
-      <button id="openBuyButton">Buy</button>
-      <button id="burnPixelButton">Burn</button>
+    <div class="absolute right-8 top-8 flex items-start gap-8">
+      <button
+        id="connectWalletButton"
+        class="bg-white px-3 py-2 border-b-2 border-gray-300 rounded shadow-lg"
+      >
+        Connect Wallet
+      </button>
+      <div
+        id="connectWallet"
+        class="bg-white p-3 border-b-2 border-gray-300 rounded-lg shadow-lg"
+        hidden
+      >
+        <label>
+          <span>Import mnemonic:</span>
+          <br />
+          <textarea id="mnemonic"></textarea>
+        </label>
+        <br />
+        <button id="importMnemonicButton">Connect</button>
+      </div>
+      <div
+        id="selection"
+        class="bg-white p-3 border-b-2 border-gray-300 rounded-lg shadow-lg"
+        hidden
+      >
+        <p>Position: <span id="selectionPosition"></span></p>
+        <p>Owner: <span id="selectionOwner"></span></p>
+        <p>Color: <span id="selectionColor"></span></p>
+        <p>Price: <span id="selectionPrice"></span></p>
+        <p>Term end: <span id="selectionTermEnd"></span></p>
+        <button id="openBuyButton">Buy</button>
+        <button id="burnPixelButton" hidden>Burn</button>
+      </div>
     </div>
     <div
       id="buy"
