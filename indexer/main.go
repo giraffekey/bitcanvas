@@ -286,7 +286,7 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	e.GET("/api/ws", socket)
+	e.GET("/ws", socket)
 	e.GET("/api/mint-fee", getMintFee)
 	e.GET("/api/tax-per-day", getTaxPerDay)
 	e.GET("/api/total-pixels", getTotalPixels)
