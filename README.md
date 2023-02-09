@@ -42,7 +42,10 @@ Bitcanvas uses a 0.175% daily Harberger tax to efficiently distribute pixel owne
 
 ## TODO
 
+- Improve the general looks of the application
 - Distribute fees and taxes as shares according to pixel ownership in the contract
 - UI/UX for claiming shares in the front-end
 - Paint tools in the front-end
 - Batch mint/buy/update transactions in the front-end
+- Implement moderation via quadratic voting based on pixel ownership
+- Mobile support
