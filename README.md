@@ -24,6 +24,8 @@ Fees and deposits are paid in shares to other pixel owners according to how many
 
 Users can use the front-end (built with PixiJS and the Algorand SDK) to browse the canvas, connect their wallet and interact with the contract.
 
+The project also includes an indexer which allows for transactionless reading of the box storage data and updates the pixel map in real time through a Websockets connection.
+
 ## What is Harberger taxation?
 
 Based on the ideas of economists [Henry George](https://en.wikipedia.org/wiki/Henry_George), [Arnold Harberger](https://en.wikipedia.org/wiki/Arnold_Harberger) and [Glen Weyl](https://glenweyl.com/), Harberger taxation is designed to reduce monopoly rents and inefficient speculative behavior. Although originally devised for more equitable and efficient real-world economies, the concept also has utility within the blockchain space and is perhaps better suited for it.
