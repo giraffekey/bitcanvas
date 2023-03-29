@@ -4,8 +4,6 @@ A decentralized collaborative pixel canvas with Harberger taxation.
 
 Built for the [Algorand Greenhouse Hack 3](https://gitcoin.co/hackathon/greenhouse3).
 
-[Video demonstration](https://ipfs.io/ipfs/bafybeia6ycn7kqd25tlv4ft5gip47sh5ijgvzbe36api7vvmltnyw43gzy/Bitcanvas%20Demo.mp4)
-
 ## Setup
 
 `cd indexer && go run *.go`
