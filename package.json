@@ -10,6 +10,7 @@
     "build:prod": "webpack --mode=production --node-env=production",
     "format": "prettier --plugin-search-dir . --write .",
     "requirements": "pip3 install -r contracts/requirements.txt",
+    "deploy": "gh-pages -d dist",
     "deploy-contract": "python3 -m contracts.deploy"
   },
   "dependencies": {
@@ -24,6 +25,7 @@
     "autoprefixer": "^10.4.13",
     "css-loader": "^6.7.3",
     "file-loader": "^6.2.0",
+    "gh-pages": "^6.1.1",
     "html-webpack-plugin": "^5.5.0",
     "mini-css-extract-plugin": "^2.7.2",
     "node-polyfill-webpack-plugin": "^2.0.1",
