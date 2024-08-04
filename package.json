@@ -10,7 +10,6 @@
     "build:prod": "webpack --mode=production --node-env=production",
     "format": "prettier --plugin-search-dir . --write .",
     "requirements": "pip3 install -r contracts/requirements.txt",
-    "deploy": "gh-pages -d build",
     "deploy-contract": "python3 -m contracts.deploy"
   },
   "dependencies": {
